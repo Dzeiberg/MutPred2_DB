@@ -1,3 +1,6 @@
+sql_configs.yaml
+.vscode/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
