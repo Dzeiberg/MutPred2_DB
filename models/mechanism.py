@@ -4,4 +4,4 @@ class Mechanism:
         self.effect_type = effect_type
         self.p_value = p_value
         self.posterior = posterior
-        self.position = int(position)
+        self.position = int(position) if position is not None else None

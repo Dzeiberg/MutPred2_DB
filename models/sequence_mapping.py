@@ -1,4 +1,4 @@
-from sequence import Sequence
+from .sequence import Sequence
 import pandas as pd
 
 class SequenceMapping:

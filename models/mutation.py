@@ -1,4 +1,4 @@
-from sequence_mapping import SequenceMapping
+from .sequence_mapping import SequenceMapping
 import pandas as pd
 
 class Mutation:
