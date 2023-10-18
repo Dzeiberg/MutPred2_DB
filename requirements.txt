@@ -4,3 +4,4 @@ pandas
 biopython
 SQLAlchemy
 PyYAML
+fire
