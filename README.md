@@ -26,5 +26,5 @@ foo@bar:~$ python -m pip install -r requirements.txt
 
 ## Updating Database with MutPred2 Results
 ```console
-foo@bar:~$ python insert_job_results --job_path=~/path/to/job/directory
+foo@bar:~$ python insert_job_results.py --job_path=~/path/to/job/directory
 ```
