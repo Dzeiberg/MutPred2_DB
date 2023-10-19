@@ -23,7 +23,10 @@ foo@bar:~$ python -m pip install -r requirements.txt
     foo@bar:~$ cd sql;
     foo@bar:~$ mysql --host=localhost --user=your_username --password=your_password  -e "building_tables.sql"
     ```
-
+4. Seed Sequences and Sequence Mappings Tables
+    ```console
+    foo@bar:~$ python initialize_sequence_and_mapping_tables.py
+    ```
 ## Updating Database with MutPred2 Results
 ### Single Job
 ```console
