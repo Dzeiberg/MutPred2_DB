@@ -24,6 +24,20 @@ class Processor:
             mapping = SequenceMapping(sequence, r.ensp_id, r.ensg_id, r.enst_id, r.gene_symbol,r.canon,r.MANE_select)
             self.mapping_objects[sequence.seq_hash] = mapping
 
+    def get_or_create_mapping_obj(self,sequence):
+        try:
+            return self.mapping_objects[Sequence.get_sequence_hash(sequence)]
+        except KeyError:
+            seq = Sequence(sequence)
+            mapping = SequenceMapping(seq, None, None, None, None, None, None)
+            seqdf = pd.DataFrame.from_records([seq.to_series()])
+            mapdf = pd.DataFrame.from_records([mapping.to_series()])
+            seqdf.to_sql('sequences',con=self.con, if_exists='append',index=False)
+            mapdf.to_sql('sequence_mapping', con=self.con, if_exists='append',index=False)
+            self.mapping_objects[seq.seq_hash] = mapping
+            return mapping
+
+
     def process_job(self,job_dir : Path,
                     input_name='input.faa', positions_pu_name='output.txt.positions_pu_1.mat',
                     prop_pvals_pu_name='output.txt.prop_pvals_pu_1.mat',
@@ -44,10 +58,9 @@ class Processor:
 
         """
         sequence = str(next(iter(parse(job_dir/input_name, 'fasta').records)).seq)
-        seq_hash = Sequence.get_sequence_hash(sequence)
-        seq = self.mapping_objects[seq_hash]
+        mapping = self.get_or_create_mapping_obj(sequence)
         output_df = pd.read_csv(job_dir / 'output.txt')
-        mutations = [Mutation(seq,sub,score) for sub,score in zip(output_df.Substitution.values,
+        mutations = [Mutation(mapping,sub,score) for sub,score in zip(output_df.Substitution.values,
                                                                   output_df['MutPred2 score'].values)]
         positions_pu = loadmat(job_dir/positions_pu_name)['positions_pu']
         positions_pu = np.concatenate((positions_pu,
