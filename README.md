@@ -9,7 +9,7 @@ foo@bar:~$ python -m pip install -r requirements.txt
 ## Create MySQL Database schema
 
 1. Create MySQL Database `MutPred2_DB`
-2. Create yaml file with database configuration information in base directory, e.g.
+2. Create `sql_configs.yaml` with database configuration information in base directory, e.g.
     ```yml
     Local:
         user: your_user
@@ -25,6 +25,11 @@ foo@bar:~$ python -m pip install -r requirements.txt
     ```
 
 ## Updating Database with MutPred2 Results
+### Single Job
 ```console
-foo@bar:~$ python insert_job_results.py --job_path=~/path/to/job/directory
+foo@bar:~$ python insert_job_results.py --job_path=~/path/to/job/directory --db_config_file=/path/to/sql_configs.yaml --db_config_name=Local
+```
+### Directory Containing Multiple Jobs
+```console
+foo@bar:~$ python insert_job_results.py --job_dirs_base=~/path/to/directory/of/multiple/jobs/ --db_config_file=/path/to/sql_configs.yaml --db_config_name=Local
 ```
