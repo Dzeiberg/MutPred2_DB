@@ -1,8 +1,17 @@
-from models.sequence_mapping import SequenceMapping
+from .sequence_mapping import SequenceMapping
 from .sequence import Sequence
 from .mutation import Mutation
 from .output_record import MutPred2Output
 from .sql_connection import SQL_Connection
+from .motif import Motif
+from .features_conservation import Features_Conservation
+from .features_function import Features_Function
+from .features_homology import Features_Homology
+from .features_pssm import Features_PSSM
+from .features_sequence import Features_Sequence
+from .features_structure import Features_Structure
+from .features_substitution import Features_Substitution
+
 from scipy.io import loadmat
 import numpy as np
 import pandas as pd
@@ -42,7 +51,11 @@ class Processor:
                     input_name='input.faa', positions_pu_name='output.txt.positions_pu_1.mat',
                     prop_pvals_pu_name='output.txt.prop_pvals_pu_1.mat',
                     prop_scores_pu_name='output.txt.prop_scores_pu_1.mat',
-                    prop_types_pu_name='output.txt.prop_types_pu_1.mat') -> List[MutPred2Output.T]:
+                    prop_types_pu_name='output.txt.prop_types_pu_1.mat',
+                    motif_info_name='output.txt.motif_info_1.mat',
+                    models_name='output.txt.models_1.mat',
+                    notes_name='output.txt.notes_1.mat',
+                    features_name='output.txt.feats_1.mat') -> List[MutPred2Output.T]:
         """
         Write the MutPred2 for a given job to the Database
 
@@ -69,12 +82,35 @@ class Processor:
         pvals_pu = loadmat(job_dir/prop_pvals_pu_name)['prop_pvals_pu']
         scores_pu = loadmat(job_dir/prop_scores_pu_name)['prop_scores_pu']
         prop_types_pu = loadmat(job_dir/prop_types_pu_name)['prop_types_pu']
+        motif_info = loadmat(job_dir/motif_info_name)['motif_info']
+        models = loadmat(job_dir / models_name)['models'].ravel()
+        notes = loadmat(job_dir / notes_name)['notes']
+        feats = loadmat(job_dir / features_name)['feats']
         output_records = []
-        for mutation,pos,pval,score,types in zip(mutations,positions_pu, pvals_pu,scores_pu,prop_types_pu):
+        motif_records = []
+        sequence_feature_sets = []
+        substitution_feature_sets = []
+        pssm_feature_sets = []
+        conservation_feature_sets = []
+        homology_feature_sets = []
+        structure_feature_sets = []
+        function_feature_sets = []
+        for mutation,pos,pval,score,types,motifs,note, feat in zip(mutations,positions_pu, pvals_pu,scores_pu,prop_types_pu,motif_info,notes, feats):
             mechanisms = MutPred2Output.read_mechanisms(pos,pval,score,types)
-            output_records.append(MutPred2Output(mutation,mechanisms))
+            output_record = MutPred2Output(mutation,mechanisms)
+            output_records.append(output_record)
+            motif_mech = [m for m in output_record.mechanisms if m.name == "Motifs"][0]
+            motif_records += Motif.motifs_from_string(mapping, mutation,motifs, motif_mech.posterior, motif_mech.pvalue)
+            sequence_feature_sets.append(mapping, mutation, Features_Sequence(feat[:184]))
+            substitution_feature_sets.append(mapping, mutation, Features_Substitution(feat[184:630]))
+            pssm_feature_sets.append(mapping, mutation, Features_PSSM(feat[630:799]))
+            conservation_feature_sets.append(mapping, mutation, Features_Conservation(feat[799:1036]))
+            homology_feature_sets.append(mapping, mutation, Features_Homology(feat[1036:1056]))
+            structure_feature_sets.append(mapping, mutation, Features_Structure(feat[1056:1135]))
+            function_feature_sets.append(mapping, mutation, Features_Function(feat[1135:]))
         self.write_mutations(output_records)
         self.write_formatted_outputs(output_records)
+        self.write_features(sequence_feature_sets, substitution_feature_sets, pssm_feature_sets, conservation_feature_sets, homology_feature_sets, structure_feature_sets, function_feature_sets)
 
     def write_mutations(self,output_records):
         mutation_df = pd.DataFrame.from_records([o.mutation.to_series() for o in output_records])
@@ -82,5 +118,13 @@ class Processor:
 
     def write_formatted_outputs(self,output_records):
         output_df = pd.DataFrame.from_records([o.to_series(flatfile_info=False) for o in output_records])
-        output_df = output_df.drop([c for c in output_df.columns if "Motif" in c],axis=1)
         output_df.to_sql('formatted_output',con=self.con.get_engine(),if_exists='append',index=False)
+
+    def write_features(self,sequence_feature_sets, substitution_feature_sets, pssm_feature_sets, conservation_feature_sets, homology_feature_sets, structure_feature_sets, function_feature_sets):
+        pd.DataFrame.from_records([s.to_series() for s in sequence_feature_sets]).to_sql('features_sequence', con=self.con.get_engine(),index=False,if_exists='append')
+        pd.DataFrame.from_records([s.to_series() for s in substitution_feature_sets]).to_sql('features_substitution', con=self.con.get_engine(),index=False,if_exists='append')
+        pd.DataFrame.from_records([s.to_series() for s in pssm_feature_sets]).to_sql('features_pssm', con=self.con.get_engine(),index=False,if_exists='append')
+        pd.DataFrame.from_records([s.to_series() for s in conservation_feature_sets]).to_sql('features_conservation', con=self.con.get_engine(),index=False,if_exists='append')
+        pd.DataFrame.from_records([s.to_series() for s in homology_feature_sets]).to_sql('features_homology', con=self.con.get_engine(),index=False,if_exists='append')
+        pd.DataFrame.from_records([s.to_series() for s in structure_feature_sets]).to_sql('features_structure', con=self.con.get_engine(),index=False,if_exists='append')
+        pd.DataFrame.from_records([s.to_series() for s in function_feature_sets]).to_sql('features_function', con=self.con.get_engine(),index=False,if_exists='append')
