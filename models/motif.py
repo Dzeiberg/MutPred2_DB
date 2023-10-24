@@ -13,12 +13,12 @@ class Motif:
         self.pvalue = pvalue
 
     @classmethod
-    def motifs_from_string(Motif, seq_mapping : SequenceMapping, mutation : Mutation, motif_str : str) -> List[M]:
+    def motifs_from_string(Motif, seq_mapping : SequenceMapping, mutation : Mutation, motif_str : str, posterior : float, pvalue : float) -> List[M]:
         motif_strings = motif_str.split(";")
         motifs = []
         for ms in motif_strings:
             if ms == "None": continue
-            motifs.append(Motif(seq_mapping, mutation, ms))
+            motifs.append(Motif(seq_mapping, mutation, ms, posterior, pvalue))
         return motifs
     
     def to_series(self):

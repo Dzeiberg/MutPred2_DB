@@ -100,7 +100,7 @@ class Processor:
             output_record = MutPred2Output(mutation,mechanisms)
             output_records.append(output_record)
             motif_mech = [m for m in output_record.mechanisms if m.name == "Motifs"][0]
-            motif_records += Motif.motifs_from_string(mapping, mutation,motifs, motif_mech.posterior, motif_mech.pvalue)
+            motif_records += Motif.motifs_from_string(mapping, mutation,motifs, motif_mech.posterior, motif_mech.p_value)
             sequence_feature_sets.append(mapping, mutation, Features_Sequence(feat[:184]))
             substitution_feature_sets.append(mapping, mutation, Features_Substitution(feat[184:630]))
             pssm_feature_sets.append(mapping, mutation, Features_PSSM(feat[630:799]))
