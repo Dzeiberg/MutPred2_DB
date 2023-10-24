@@ -41,8 +41,8 @@ class Processor:
             mapping = SequenceMapping(seq, None, None, None, None, None, None)
             seqdf = pd.DataFrame.from_records([seq.to_series()])
             mapdf = pd.DataFrame.from_records([mapping.to_series()])
-            seqdf.to_sql('sequences',con=self.con, if_exists='append',index=False)
-            mapdf.to_sql('sequence_mapping', con=self.con, if_exists='append',index=False)
+            seqdf.to_sql('sequences',con=self.con.get_engine(), if_exists='append',index=False)
+            mapdf.to_sql('sequence_mapping', con=self.con.get_engine(), if_exists='append',index=False)
             self.mapping_objects[seq.seq_hash] = mapping
             return mapping
 

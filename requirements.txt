@@ -1,7 +1,8 @@
 scipy
 numpy
 pandas
-biopython
+biopython==1.81
 SQLAlchemy
 PyYAML
 fire
+mysql-connector-python
