@@ -9,6 +9,8 @@ import pandas as pd
 from pathlib import Path
 from typing import List,Dict
 from Bio.SeqIO import parse
+import re
+
 
 
 class Processor:
@@ -23,6 +25,20 @@ class Processor:
             sequence = Sequence(r.sequence)
             mapping = SequenceMapping(sequence, r.ensp_id, r.ensg_id, r.enst_id, r.gene_symbol,r.canon,r.MANE_select)
             self.mapping_objects[sequence.seq_hash] = mapping
+
+    def collect_feature_files(self, job_dir : Path):
+
+        input_name='input.faa'
+        positions_pu_name_pattern='*.txt.positions_pu_\d+.mat'            
+        prop_pvals_pu_name_pattern='*.txt.prop_pvals_pu_\d+.mat'
+        prop_scores_pu_name_pattern='*.txt.prop_scores_pu_\d+.mat'
+        prop_types_pu_name_pattern='*.txt.prop_types_pu_\d+.mat'
+
+
+        score_pattern = re.compile(".*\.missense_output_\d+.txt$")
+
+        #scores = [s for s in score_dir if score_pattern.match(s.split("/")[-1])]
+        return score_pattern
 
     def process_job(self,job_dir : Path,
                     input_name='input.faa', positions_pu_name='output.txt.positions_pu_1.mat',
@@ -49,6 +65,11 @@ class Processor:
         output_df = pd.read_csv(job_dir / 'output.txt')
         mutations = [Mutation(seq,sub,score) for sub,score in zip(output_df.Substitution.values,
                                                                   output_df['MutPred2 score'].values)]
+        
+        positions_pu_name = "clinvar_genes.missense_output_1.txt.prop_types_pu_1.mat"
+        positions_pu = loadmat(job_dir/positions_pu_name)['positions_pu']
+        print (positions_pu)
+        exit()
         positions_pu = loadmat(job_dir/positions_pu_name)['positions_pu']
         positions_pu = np.concatenate((positions_pu,
                                     np.ones((positions_pu.shape[0], 1)) * -1),

@@ -24,6 +24,7 @@ def insert_job_results(jobs_dirs_base=None,job_path=None, db_config_file="sql_co
     else:
         print(f"processing job {job_path}")
         jobs = [Path(job_path)]
+    
     con = SQL_Connection(db_config_name, db_config_file)
     processor = Processor(con)
     for job in tqdm(jobs):
