@@ -50,6 +50,7 @@ class MutPred2Output:
             data = {'seq_hash' : self.mutation.mapping.seq.seq_hash,
                     'mutation' : self.mutation.mutation}
         for mechanism in self.mechanisms:
+            if mechanism.name == "Motifs": continue
             if mechanism.name not in MutPred2Output.__no_region_set__:
                 data[mechanism.name + "_position"] = mechanism.position
             data[mechanism.name + "_posterior"] = mechanism.posterior

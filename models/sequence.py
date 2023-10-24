@@ -12,8 +12,8 @@ class Sequence:
         self.seq_hash = Sequence.get_sequence_hash(seq)
 
     def to_series(self):
-        return pd.Series({'sequence':self.seq,
-                          'seq_hash': self.seq_hash})
+        return pd.Series({'seq_hash': self.seq_hash,
+                          'sequence':self.seq})
 
     @staticmethod
     def get_sequence_hash(sequence : str):
