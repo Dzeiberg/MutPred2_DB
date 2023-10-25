@@ -20,14 +20,14 @@ from typing import List,Dict
 from Bio.SeqIO import parse
 import re
 import os
-
+import logging
 
 
 class Processor:
     def __init__(self, con : SQL_Connection):
         self.con = con
         self.init_mapping_objects()
-        
+        self.initialize_existing_tuples()
     def init_mapping_objects(self):
         self.mapping_objects = {}
         seq_df = pd.read_sql("SELECT * FROM sequence_mapping INNER JOIN sequences ON sequence_mapping.seq_hash = sequences.seq_hash",con=self.con.get_engine())
@@ -176,19 +176,104 @@ class Processor:
         self.write_formatted_outputs(output_records)
         self.write_features(sequence_feature_sets, substitution_feature_sets, pssm_feature_sets, conservation_feature_sets, homology_feature_sets, structure_feature_sets, function_feature_sets)
 
+    def initialize_existing_tuples(self):
+        logging.warning('initializing mutations')
+        self.existing_mutations = NamedSet("existing_mutations")
+        self.existing_mutations.update(pd.read_sql('select seq_hash,mutation from mutations',con=self.con.get_engine()).apply(tuple,axis=1).values)
+        logging.warning('initializing formatted_output')
+        self.existing_formatted_outputs = NamedSet("existing_formatted_outputs")
+        self.existing_formatted_outputs.update(pd.read_sql('select seq_hash,mutation from formatted_output',con=self.con.get_engine()).apply(tuple,axis=1).values)
+        logging.warning('initializing features_sequence')
+        self.existing_features_sequence = NamedSet("existing_features_sequence")
+        self.existing_features_sequence.update(pd.read_sql('select seq_hash,mutation from features_sequence',con=self.con.get_engine()).apply(tuple,axis=1).values)
+        logging.warning('initializing features_substitution')
+        self.existing_features_substitution = NamedSet("existing_features_substitution")
+        self.existing_features_substitution.update(pd.read_sql('select seq_hash,mutation from features_substitution',con=self.con.get_engine()).apply(tuple,axis=1).values)
+        logging.warning('initializing features_pssm')
+        self.existing_features_pssm = NamedSet("existing_features_pssm")
+        self.existing_features_pssm.update(pd.read_sql('select seq_hash,mutation from features_pssm',con=self.con.get_engine()).apply(tuple,axis=1).values)
+        logging.warning('initializing features_conservation')
+        self.existing_features_conservation = NamedSet("existing_features_conservation")
+        self.existing_features_conservation.update(pd.read_sql('select seq_hash,mutation from features_conservation',con=self.con.get_engine()).apply(tuple,axis=1).values)
+        logging.warning('initializing features_homology')
+        self.existing_features_homology = NamedSet("existing_features_homology")
+        self.existing_features_homology.update(pd.read_sql('select seq_hash,mutation from features_homology',con=self.con.get_engine()).apply(tuple,axis=1).values)
+        logging.warning('initializing features_structure')
+        self.existing_features_structure = NamedSet("existing_features_structure")
+        self.existing_features_structure.update(pd.read_sql('select seq_hash,mutation from features_structure',con=self.con.get_engine()).apply(tuple,axis=1).values)
+        logging.warning('initializing features_function')
+        self.existing_features_function = NamedSet("existing_features_function")
+        self.existing_features_function.update(pd.read_sql('select seq_hash,mutation from features_function',con=self.con.get_engine()).apply(tuple,axis=1).values)
+
+
+    def filter_existing_and_update(self,df, tupset):
+        tuple_series = df.loc[:,['seq_hash','mutation']].apply(tuple,axis=1)
+        new_df = df.loc[tuple_series.apply(lambda tup: tup not in tupset)]
+        new_len = len(new_df)
+        old_len = len(df)
+        if old_len != new_len:
+            logging.warning(f'skipping {old_len - new_len} records already existing in table {tupset}')
+        tupset.update(tuple_series.values)
+        return new_df
+
     def write_mutations(self,output_records):
         mutation_df = pd.DataFrame.from_records([o.mutation.to_series() for o in output_records])
-        mutation_df.to_sql('mutations',con=self.con.get_engine(),if_exists='append',index=False)
+        out = self.filter_existing_and_update(mutation_df, self.existing_mutations)
+        out.to_sql('mutations',con=self.con.get_engine(),if_exists='append',index=False)
 
     def write_formatted_outputs(self,output_records):
         output_df = pd.DataFrame.from_records([o.to_series(flatfile_info=False) for o in output_records])
-        output_df.to_sql('formatted_output',con=self.con.get_engine(),if_exists='append',index=False)
+        out = self.filter_existing_and_update(output_df, self.existing_formatted_outputs)
+        out.to_sql('formatted_output',con=self.con.get_engine(),if_exists='append',index=False)
 
-    def write_features(self,sequence_feature_sets, substitution_feature_sets, pssm_feature_sets, conservation_feature_sets, homology_feature_sets, structure_feature_sets, function_feature_sets):
-        pd.DataFrame.from_records([s.to_series() for s in sequence_feature_sets]).to_sql('features_sequence', con=self.con.get_engine(),index=False,if_exists='append')
-        pd.DataFrame.from_records([s.to_series() for s in substitution_feature_sets]).to_sql('features_substitution', con=self.con.get_engine(),index=False,if_exists='append')
-        pd.DataFrame.from_records([s.to_series() for s in pssm_feature_sets]).to_sql('features_pssm', con=self.con.get_engine(),index=False,if_exists='append')
-        pd.DataFrame.from_records([s.to_series() for s in conservation_feature_sets]).to_sql('features_conservation', con=self.con.get_engine(),index=False,if_exists='append')
-        pd.DataFrame.from_records([s.to_series() for s in homology_feature_sets]).to_sql('features_homology', con=self.con.get_engine(),index=False,if_exists='append')
-        pd.DataFrame.from_records([s.to_series() for s in structure_feature_sets]).to_sql('features_structure', con=self.con.get_engine(),index=False,if_exists='append')
-        pd.DataFrame.from_records([s.to_series() for s in function_feature_sets]).to_sql('features_function', con=self.con.get_engine(),index=False,if_exists='append')
+    def write_features(self,sequence_feature_sets, substitution_feature_sets,
+                       pssm_feature_sets, conservation_feature_sets, homology_feature_sets,
+                       structure_feature_sets, function_feature_sets):
+        self.filter_existing_and_update(pd.DataFrame.from_records([s.to_series() for s in sequence_feature_sets]),
+                                        self.existing_features_sequence).to_sql('features_sequence',
+                                                                                con=self.con.get_engine(),
+                                                                                index=False,
+                                                                                if_exists='append')
+        
+        self.filter_existing_and_update(pd.DataFrame.from_records([s.to_series() for s in substitution_feature_sets]),
+                                        self.existing_features_substitution).to_sql('features_substitution',
+                                                                                    con=self.con.get_engine(),
+                                                                                    index=False,
+                                                                                    if_exists='append')
+        
+        self.filter_existing_and_update(pd.DataFrame.from_records([s.to_series() for s in pssm_feature_sets]),
+                                        self.existing_features_pssm).to_sql('features_pssm',
+                                                                            con=self.con.get_engine(),
+                                                                            index=False,
+                                                                            if_exists='append')
+        
+        self.filter_existing_and_update(pd.DataFrame.from_records([s.to_series() for s in conservation_feature_sets]),
+                                        self.existing_features_conservation).to_sql('features_conservation',
+                                                                                    con=self.con.get_engine(),
+                                                                                    index=False,
+                                                                                    if_exists='append')
+        
+        self.filter_existing_and_update(pd.DataFrame.from_records([s.to_series() for s in homology_feature_sets]),
+                                        self.existing_features_homology).to_sql('features_homology',
+                                                                                con=self.con.get_engine(),
+                                                                                index=False,
+                                                                                if_exists='append')
+        
+        self.filter_existing_and_update(pd.DataFrame.from_records([s.to_series() for s in structure_feature_sets]),
+                                        self.existing_features_structure).to_sql('features_structure',
+                                                                                 con=self.con.get_engine(),
+                                                                                 index=False,
+                                                                                 if_exists='append')
+        
+        self.filter_existing_and_update(pd.DataFrame.from_records([s.to_series() for s in function_feature_sets]),
+                                        self.existing_features_function).to_sql('features_function',
+                                                                                con=self.con.get_engine(),
+                                                                                index=False,
+                                                                                if_exists='append')
+
+class NamedSet(set):
+    def __init__(self,name):
+        super().__init__()
+        self.name = name
+    def __repr__(self):
+        return f"set {self.name} "# + super().__repr__()
