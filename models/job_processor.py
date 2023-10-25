@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import List,Dict
 from Bio.SeqIO import parse
 import re
+import os
 
 
 
@@ -47,17 +48,69 @@ class Processor:
             mapdf.to_sql('sequence_mapping', con=self.con.get_engine(), if_exists='append',index=False)
             self.mapping_objects[seq.seq_hash] = mapping
             return mapping
+    
+
+    def read_input_file(self, job_dir : Path):
+
+        directory = os.listdir(job_dir)
+
+        re_pattern = re.compile('.*.faa$')
+
+        files = sorted([f for f in directory if re_pattern.match(f)])
+
+        if len(files) == 1:
+            return files[0]
+        
+        elif len(files)==0:
+            raise FileNotFoundError("No input file found ending in '.faa'")
+
+        else:
+            raise FileExistsError("Too many input files with '.faa', only one expected")
+    
+
+    def read_output_file(self, job_dir : Path):
+
+        directory = os.listdir(job_dir)
+
+        re_pattern = re.compile('.*.txt$')
+
+        files = sorted([f for f in directory if re_pattern.match(f)])
+
+        if len(files) == 1:
+            return files[0]
+        
+        elif len(files)==0:
+            raise FileNotFoundError("No output file found ending in '.txt'")
+
+        else:
+            raise FileExistsError("Too many output files with '.txt', only one expected")
 
 
-    def process_job(self,job_dir : Path,
-                    input_name='input.faa', positions_pu_name='output.txt.positions_pu_1.mat',
-                    prop_pvals_pu_name='output.txt.prop_pvals_pu_1.mat',
-                    prop_scores_pu_name='output.txt.prop_scores_pu_1.mat',
-                    prop_types_pu_name='output.txt.prop_types_pu_1.mat',
-                    motif_info_name='output.txt.motif_info_1.mat',
-                    models_name='output.txt.models_1.mat',
-                    notes_name='output.txt.notes_1.mat',
-                    features_name='output.txt.feats_1.mat') -> List[MutPred2Output.T]:
+    def read_mat_files(self, job_dir : Path, pattern : str, key_value : str):
+
+        directory = os.listdir(job_dir)
+
+        re_pattern = re.compile(pattern)
+
+        files = sorted([f for f in directory if re_pattern.match(f)])
+
+        data = pd.DataFrame({
+            "Files": files
+        })
+        data["file_num"] = data["Files"].str.split(".").str[-2].str.split("_").str[-1].astype(int)
+
+        files = data.sort_values(by="file_num")["Files"]
+
+        if key_value == "motif_info" or key_value=="models":
+            data = np.concatenate([loadmat(f"{job_dir}/{f}")[key_value].ravel() for f in files])
+
+        else:
+            data = np.concatenate([loadmat(f"{job_dir}/{f}")[key_value] for f in files])
+
+        return data
+
+
+    def process_job(self, job_dir : Path) -> List[MutPred2Output.T]:
         """
         Write the MutPred2 for a given job to the Database
 
@@ -72,27 +125,29 @@ class Processor:
         - prop_types_pu_name : str : Default 'output.txt.prop_types_pu_1.mat'
 
         """
+        input_name = self.read_input_file(job_dir=job_dir)
         sequence = str(next(iter(parse(job_dir/input_name, 'fasta').records)).seq)
         mapping = self.get_or_create_mapping_obj(sequence)
-        output_df = pd.read_csv(job_dir / 'output.txt')
+
+        output_name = self.read_output_file(job_dir=job_dir)
+        output_df = pd.read_csv(job_dir / output_name)
+        
         mutations = [Mutation(mapping,sub,score) for sub,score in zip(output_df.Substitution.values,
                                                                   output_df['MutPred2 score'].values)]
         
-        positions_pu_name = "clinvar_genes.missense_output_1.txt.prop_types_pu_1.mat"
-        positions_pu = loadmat(job_dir/positions_pu_name)['positions_pu']
-        print (positions_pu)
-        exit()
-        positions_pu = loadmat(job_dir/positions_pu_name)['positions_pu']
+        positions_pu = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.positions_pu_\d+.mat', key_value='positions_pu') #loadmat(job_dir/positions_pu_name)['positions_pu']
         positions_pu = np.concatenate((positions_pu,
                                     np.ones((positions_pu.shape[0], 1)) * -1),
                                     axis=1)
-        pvals_pu = loadmat(job_dir/prop_pvals_pu_name)['prop_pvals_pu']
-        scores_pu = loadmat(job_dir/prop_scores_pu_name)['prop_scores_pu']
-        prop_types_pu = loadmat(job_dir/prop_types_pu_name)['prop_types_pu']
-        motif_info = loadmat(job_dir/motif_info_name)['motif_info'].ravel()
-        models = loadmat(job_dir / models_name)['models'].ravel()
-        notes = loadmat(job_dir / notes_name)['notes']
-        feats = loadmat(job_dir / features_name)['feats']
+        pvals_pu        = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.prop_pvals_pu_\d+.mat', key_value='prop_pvals_pu') #loadmat(job_dir/prop_pvals_pu_name)['prop_pvals_pu']
+        scores_pu       = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.prop_scores_pu_\d+.mat', key_value='prop_scores_pu') #loadmat(job_dir/prop_scores_pu_name)['prop_scores_pu']
+        prop_types_pu   = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.prop_types_pu_\d+.mat', key_value='prop_types_pu') #loadmat(job_dir/prop_types_pu_name)['prop_types_pu']
+        motif_info      = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.motif_info_\d+.mat', key_value='motif_info') #loadmat(job_dir/motif_info_name)['motif_info'].ravel()
+        models          = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.models_\d+.mat', key_value='models') #loadmat(job_dir / models_name)['models'].ravel()
+        notes           = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.notes_\d+.mat', key_value='notes') #loadmat(job_dir / notes_name)['notes']
+        feats           = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.feats_\d+.mat', key_value='feats') #loadmat(job_dir / features_name)['feats']
+
+        
         output_records = []
         motif_records = []
         sequence_feature_sets = []
@@ -115,6 +170,8 @@ class Processor:
             homology_feature_sets.append(Features_Homology(mapping, mutation, feat[1036:1056]))
             structure_feature_sets.append(Features_Structure(mapping, mutation, feat[1056:1135]))
             function_feature_sets.append(Features_Function(mapping, mutation, feat[1135:]))
+
+        
         self.write_mutations(output_records)
         self.write_formatted_outputs(output_records)
         self.write_features(sequence_feature_sets, substitution_feature_sets, pssm_feature_sets, conservation_feature_sets, homology_feature_sets, structure_feature_sets, function_feature_sets)
