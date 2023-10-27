@@ -59,7 +59,7 @@ class Processor:
         files = sorted([f for f in directory if re_pattern.match(f)])
 
         if len(files) == 1:
-            print (f"INPUT FILE: {files[0]}")
+            logging.warning(f'Reading input file: {files[0]}')
             return files[0]
         
         elif len(files)==0:
@@ -127,6 +127,7 @@ class Processor:
 
         """
         input_name = self.read_input_file(job_dir=job_dir)
+
         sequence = str(next(iter(parse(job_dir/input_name, 'fasta').records)).seq)
         mapping = self.get_or_create_mapping_obj(sequence)
 
