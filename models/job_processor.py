@@ -59,6 +59,7 @@ class Processor:
         files = sorted([f for f in directory if re_pattern.match(f)])
 
         if len(files) == 1:
+            print (f"INPUT FILE: {files[0]}")
             return files[0]
         
         elif len(files)==0:
@@ -185,7 +186,7 @@ class Processor:
         output_df.to_sql('formatted_output',con=self.con.get_engine(),if_exists='append',index=False)
 
     def write_features(self,sequence_feature_sets, substitution_feature_sets, pssm_feature_sets, conservation_feature_sets, homology_feature_sets, structure_feature_sets, function_feature_sets):
-        pd.DataFrame.from_records([s.to_series() for s in sequence_feature_sets]).to_sql('features_sequence', con=self.con.get_engine(),index=False,if_exists='append')
+        pd.DataFrame.from_records([s.to_series() for s in sequence_feature_sets]).to_sql('features_sequence', con=self.con.++(),index=False,if_exists='append')
         pd.DataFrame.from_records([s.to_series() for s in substitution_feature_sets]).to_sql('features_substitution', con=self.con.get_engine(),index=False,if_exists='append')
         pd.DataFrame.from_records([s.to_series() for s in pssm_feature_sets]).to_sql('features_pssm', con=self.con.get_engine(),index=False,if_exists='append')
         pd.DataFrame.from_records([s.to_series() for s in conservation_feature_sets]).to_sql('features_conservation', con=self.con.get_engine(),index=False,if_exists='append')
