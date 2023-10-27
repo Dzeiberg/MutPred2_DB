@@ -13,5 +13,5 @@ class SQL_Connection:
         self.database = cfg['database']
 
     def get_engine(self):
-        engine = create_engine(f'mysql+mysqlconnector://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}', fast_executemany=True, echo=False)
+        engine = create_engine(f'mysql+mysqlconnector://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}', echo=False)
         return engine
