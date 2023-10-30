@@ -103,10 +103,9 @@ class Processor:
         files = data.sort_values(by="file_num")["Files"]
 
         if key_value == "motif_info" or key_value=="models":
-            data = np.concatenate([loadmat(f"{job_dir}/{f}")[key_value].ravel() for f in files])
-
+            data = np.concatenate([loadmat(f"{job_dir}/{f}")[key_value].ravel() for f in files if len(loadmat(f"{job_dir}/{f}")[key_value].ravel()) > 0])
         else:
-            data = np.concatenate([loadmat(f"{job_dir}/{f}")[key_value] for f in files])
+            data = np.concatenate([loadmat(f"{job_dir}/{f}")[key_value] for f in files if len(loadmat(f"{job_dir}/{f}")[key_value]) > 0])
 
         return data
 
@@ -149,34 +148,44 @@ class Processor:
         notes           = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.notes_\d+.mat', key_value='notes') #loadmat(job_dir / notes_name)['notes']
         feats           = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.feats_\d+.mat', key_value='feats') #loadmat(job_dir / features_name)['feats']
 
+        if len(set([len(pvals_pu),len(scores_pu),len(prop_types_pu),len(motif_info),len(models),len(notes),len(feats)])) == 1:
+            
+            output_records = []
+            motif_records = []
+            sequence_feature_sets = []
+            substitution_feature_sets = []
+            pssm_feature_sets = []
+            conservation_feature_sets = []
+            homology_feature_sets = []
+            structure_feature_sets = []
+            function_feature_sets = []
+            for mutation,pos,pval,score,types,motifs,note, feat in zip(mutations,positions_pu, pvals_pu,scores_pu,prop_types_pu,motif_info,notes, feats):
+                mechanisms = MutPred2Output.read_mechanisms(pos,pval,score,types)
+                output_record = MutPred2Output(mutation,mechanisms)
+                output_records.append(output_record)
+                motif_mech = [m for m in output_record.mechanisms if m.name == "Motifs"][0]
+                motif_records += Motif.motifs_from_string(mapping, mutation,motifs.item(), motif_mech.posterior, motif_mech.p_value)
+                sequence_feature_sets.append(Features_Sequence(mapping, mutation, feat[:184]))
+                substitution_feature_sets.append(Features_Substitution(mapping, mutation, feat[184:630]))
+                pssm_feature_sets.append(Features_PSSM(mapping, mutation, feat[630:799]))
+                conservation_feature_sets.append(Features_Conservation(mapping, mutation, feat[799:1036]))
+                homology_feature_sets.append(Features_Homology(mapping, mutation, feat[1036:1056]))
+                structure_feature_sets.append(Features_Structure(mapping, mutation, feat[1056:1135]))
+                function_feature_sets.append(Features_Function(mapping, mutation, feat[1135:]))
+            
+            self.write_mutations(output_records)
+            self.write_formatted_outputs(output_records)
+            self.write_features(sequence_feature_sets, substitution_feature_sets, pssm_feature_sets, conservation_feature_sets, homology_feature_sets, structure_feature_sets, function_feature_sets)
         
-        output_records = []
-        motif_records = []
-        sequence_feature_sets = []
-        substitution_feature_sets = []
-        pssm_feature_sets = []
-        conservation_feature_sets = []
-        homology_feature_sets = []
-        structure_feature_sets = []
-        function_feature_sets = []
-        for mutation,pos,pval,score,types,motifs,note, feat in zip(mutations,positions_pu, pvals_pu,scores_pu,prop_types_pu,motif_info,notes, feats):
-            mechanisms = MutPred2Output.read_mechanisms(pos,pval,score,types)
-            output_record = MutPred2Output(mutation,mechanisms)
-            output_records.append(output_record)
-            motif_mech = [m for m in output_record.mechanisms if m.name == "Motifs"][0]
-            motif_records += Motif.motifs_from_string(mapping, mutation,motifs.item(), motif_mech.posterior, motif_mech.p_value)
-            sequence_feature_sets.append(Features_Sequence(mapping, mutation, feat[:184]))
-            substitution_feature_sets.append(Features_Substitution(mapping, mutation, feat[184:630]))
-            pssm_feature_sets.append(Features_PSSM(mapping, mutation, feat[630:799]))
-            conservation_feature_sets.append(Features_Conservation(mapping, mutation, feat[799:1036]))
-            homology_feature_sets.append(Features_Homology(mapping, mutation, feat[1036:1056]))
-            structure_feature_sets.append(Features_Structure(mapping, mutation, feat[1056:1135]))
-            function_feature_sets.append(Features_Function(mapping, mutation, feat[1135:]))
-
-        
-        self.write_mutations(output_records)
-        self.write_formatted_outputs(output_records)
-        self.write_features(sequence_feature_sets, substitution_feature_sets, pssm_feature_sets, conservation_feature_sets, homology_feature_sets, structure_feature_sets, function_feature_sets)
+        else:
+            logging.warning(f'{job_dir} not written to database because files are mismatched in size. See concatenated file lengths below.')
+            logging.warning(f"prop_pvals_pu: {len(pvals_pu)}")
+            logging.warning(f"prop_scores_pu: {len(scores_pu)}")
+            logging.warning(f"prop_types_pu: {len(prop_types_pu)}")
+            logging.warning(f"motif_info: {len(motif_info)}")
+            logging.warning(f"models: {len(models)}")
+            logging.warning(f"notes: {len(notes)}")
+            logging.warning(f"features: {len(feats)}")
 
     def initialize_existing_tuples(self):
         logging.warning('initializing mutations')
