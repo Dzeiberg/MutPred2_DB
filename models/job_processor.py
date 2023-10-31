@@ -144,7 +144,7 @@ class Processor:
 
         """
 
-        if self.get_job_status() == "COMPLETE":
+        if self.get_job_status(job_dir) == "COMPLETE":
             pass
         else:
             input_name = self.read_input_file(job_dir=job_dir)
