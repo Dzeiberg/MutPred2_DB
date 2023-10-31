@@ -100,9 +100,11 @@ class Processor:
         
         elif len(files)==0:
             logging.warning(f"No output file found ending in '.txt' for job {job_dir}")
+            return ""
 
         else:
             logging.warning(f"Too many output files with '.txt' for job {job_dir}, only one expected")
+            return ""
 
 
     def read_mat_files(self, job_dir : Path, pattern : str, key_value : str):
