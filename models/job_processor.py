@@ -18,6 +18,7 @@ import pandas as pd
 from pathlib import Path
 from typing import List,Dict
 from Bio.SeqIO import parse
+import json
 import re
 import os
 import logging
@@ -48,6 +49,20 @@ class Processor:
             mapdf.to_sql('sequence_mapping', con=self.con.get_engine(), if_exists='append',index=False)
             self.mapping_objects[seq.seq_hash] = mapping
             return mapping
+        
+
+    def create_status_file(self, job_dir : Path, status : str):
+        with open(f"{job_dir}/status.json",'w') as s:
+            status_output = json.dumps({ "status": status })
+            s.write(status_output)
+
+    def get_job_status(self, job_dir: Path):
+        if os.path.isfile(f"{job_dir}/status.json"):
+            job_status = json.load(open(f"{job_dir}/status.json"))["status"]
+        else:
+            job_status = "INCOMPLETE"
+        return job_status
+
     
 
     def read_input_file(self, job_dir : Path):
@@ -63,10 +78,13 @@ class Processor:
             return files[0]
         
         elif len(files)==0:
-            raise FileNotFoundError("No input file found ending in '.faa'")
+
+            logging.warning(f"No input file found ending in '.faa' for job {job_dir}")
+            return ""
 
         else:
-            raise FileExistsError("Too many input files with '.faa', only one expected")
+            logging.warning(f"Too many input files with '.faa' for job {job_dir}, only one expected")
+            return ""
     
 
     def read_output_file(self, job_dir : Path):
@@ -81,10 +99,10 @@ class Processor:
             return files[0]
         
         elif len(files)==0:
-            raise FileNotFoundError("No output file found ending in '.txt'")
+            logging.warning(f"No output file found ending in '.txt' for job {job_dir}")
 
         else:
-            raise FileExistsError("Too many output files with '.txt', only one expected")
+            logging.warning(f"Too many output files with '.txt' for job {job_dir}, only one expected")
 
 
     def read_mat_files(self, job_dir : Path, pattern : str, key_value : str):
@@ -125,67 +143,88 @@ class Processor:
         - prop_types_pu_name : str : Default 'output.txt.prop_types_pu_1.mat'
 
         """
-        input_name = self.read_input_file(job_dir=job_dir)
 
-        sequence = str(next(iter(parse(job_dir/input_name, 'fasta').records)).seq)
-        mapping = self.get_or_create_mapping_obj(sequence)
-
-        output_name = self.read_output_file(job_dir=job_dir)
-        output_df = pd.read_csv(job_dir / output_name)
-        
-        mutations = [Mutation(mapping,sub,score) for sub,score in zip(output_df.Substitution.values,
-                                                                  output_df['MutPred2 score'].values)]
-        
-        positions_pu = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.positions_pu_\d+.mat', key_value='positions_pu') #loadmat(job_dir/positions_pu_name)['positions_pu']
-        positions_pu = np.concatenate((positions_pu,
-                                    np.ones((positions_pu.shape[0], 1)) * -1),
-                                    axis=1)
-        pvals_pu        = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.prop_pvals_pu_\d+.mat', key_value='prop_pvals_pu') #loadmat(job_dir/prop_pvals_pu_name)['prop_pvals_pu']
-        scores_pu       = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.prop_scores_pu_\d+.mat', key_value='prop_scores_pu') #loadmat(job_dir/prop_scores_pu_name)['prop_scores_pu']
-        prop_types_pu   = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.prop_types_pu_\d+.mat', key_value='prop_types_pu') #loadmat(job_dir/prop_types_pu_name)['prop_types_pu']
-        motif_info      = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.motif_info_\d+.mat', key_value='motif_info') #loadmat(job_dir/motif_info_name)['motif_info'].ravel()
-        models          = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.models_\d+.mat', key_value='models') #loadmat(job_dir / models_name)['models'].ravel()
-        notes           = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.notes_\d+.mat', key_value='notes') #loadmat(job_dir / notes_name)['notes']
-        feats           = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.feats_\d+.mat', key_value='feats') #loadmat(job_dir / features_name)['feats']
-
-        if len(set([len(pvals_pu),len(scores_pu),len(prop_types_pu),len(motif_info),len(models),len(notes),len(feats)])) == 1:
-            
-            output_records = []
-            motif_records = []
-            sequence_feature_sets = []
-            substitution_feature_sets = []
-            pssm_feature_sets = []
-            conservation_feature_sets = []
-            homology_feature_sets = []
-            structure_feature_sets = []
-            function_feature_sets = []
-            for mutation,pos,pval,score,types,motifs,note, feat in zip(mutations,positions_pu, pvals_pu,scores_pu,prop_types_pu,motif_info,notes, feats):
-                mechanisms = MutPred2Output.read_mechanisms(pos,pval,score,types)
-                output_record = MutPred2Output(mutation,mechanisms)
-                output_records.append(output_record)
-                motif_mech = [m for m in output_record.mechanisms if m.name == "Motifs"][0]
-                motif_records += Motif.motifs_from_string(mapping, mutation,motifs.item(), motif_mech.posterior, motif_mech.p_value)
-                sequence_feature_sets.append(Features_Sequence(mapping, mutation, feat[:184]))
-                substitution_feature_sets.append(Features_Substitution(mapping, mutation, feat[184:630]))
-                pssm_feature_sets.append(Features_PSSM(mapping, mutation, feat[630:799]))
-                conservation_feature_sets.append(Features_Conservation(mapping, mutation, feat[799:1036]))
-                homology_feature_sets.append(Features_Homology(mapping, mutation, feat[1036:1056]))
-                structure_feature_sets.append(Features_Structure(mapping, mutation, feat[1056:1135]))
-                function_feature_sets.append(Features_Function(mapping, mutation, feat[1135:]))
-            
-            self.write_mutations(output_records)
-            self.write_formatted_outputs(output_records)
-            self.write_features(sequence_feature_sets, substitution_feature_sets, pssm_feature_sets, conservation_feature_sets, homology_feature_sets, structure_feature_sets, function_feature_sets)
-        
+        if self.get_job_status() == "COMPLETE":
+            pass
         else:
-            logging.warning(f'{job_dir} not written to database because files are mismatched in size. See concatenated file lengths below.')
-            logging.warning(f"prop_pvals_pu: {len(pvals_pu)}")
-            logging.warning(f"prop_scores_pu: {len(scores_pu)}")
-            logging.warning(f"prop_types_pu: {len(prop_types_pu)}")
-            logging.warning(f"motif_info: {len(motif_info)}")
-            logging.warning(f"models: {len(models)}")
-            logging.warning(f"notes: {len(notes)}")
-            logging.warning(f"features: {len(feats)}")
+            input_name = self.read_input_file(job_dir=job_dir)
+            if input_name != "":
+                sequence = str(next(iter(parse(job_dir/input_name, 'fasta').records)).seq)
+                mapping = self.get_or_create_mapping_obj(sequence)
+                input_pass = True
+            else:
+                input_pass = False
+
+
+            output_name = self.read_output_file(job_dir=job_dir)
+            if output_name != "":
+                output_df = pd.read_csv(job_dir / output_name)
+                output_pass = True
+            else:
+                output_pass = False
+
+
+            if input_pass and output_pass:
+            
+                mutations = [Mutation(mapping,sub,score) for sub,score in zip(output_df.Substitution.values,
+                                                                        output_df['MutPred2 score'].values)]
+                
+                positions_pu = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.positions_pu_\d+.mat', key_value='positions_pu') #loadmat(job_dir/positions_pu_name)['positions_pu']
+                positions_pu = np.concatenate((positions_pu,
+                                            np.ones((positions_pu.shape[0], 1)) * -1),
+                                            axis=1)
+                pvals_pu        = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.prop_pvals_pu_\d+.mat', key_value='prop_pvals_pu') #loadmat(job_dir/prop_pvals_pu_name)['prop_pvals_pu']
+                scores_pu       = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.prop_scores_pu_\d+.mat', key_value='prop_scores_pu') #loadmat(job_dir/prop_scores_pu_name)['prop_scores_pu']
+                prop_types_pu   = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.prop_types_pu_\d+.mat', key_value='prop_types_pu') #loadmat(job_dir/prop_types_pu_name)['prop_types_pu']
+                motif_info      = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.motif_info_\d+.mat', key_value='motif_info') #loadmat(job_dir/motif_info_name)['motif_info'].ravel()
+                models          = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.models_\d+.mat', key_value='models') #loadmat(job_dir / models_name)['models'].ravel()
+                notes           = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.notes_\d+.mat', key_value='notes') #loadmat(job_dir / notes_name)['notes']
+                feats           = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.feats_\d+.mat', key_value='feats') #loadmat(job_dir / features_name)['feats']
+
+                if len(set([len(pvals_pu),len(scores_pu),len(prop_types_pu),len(motif_info),len(models),len(notes),len(feats)])) == 1:
+                    
+                    output_records = []
+                    motif_records = []
+                    sequence_feature_sets = []
+                    substitution_feature_sets = []
+                    pssm_feature_sets = []
+                    conservation_feature_sets = []
+                    homology_feature_sets = []
+                    structure_feature_sets = []
+                    function_feature_sets = []
+                    for mutation,pos,pval,score,types,motifs,note, feat in zip(mutations,positions_pu, pvals_pu,scores_pu,prop_types_pu,motif_info,notes, feats):
+                        mechanisms = MutPred2Output.read_mechanisms(pos,pval,score,types)
+                        output_record = MutPred2Output(mutation,mechanisms)
+                        output_records.append(output_record)
+                        motif_mech = [m for m in output_record.mechanisms if m.name == "Motifs"][0]
+                        motif_records += Motif.motifs_from_string(mapping, mutation,motifs.item(), motif_mech.posterior, motif_mech.p_value)
+                        sequence_feature_sets.append(Features_Sequence(mapping, mutation, feat[:184]))
+                        substitution_feature_sets.append(Features_Substitution(mapping, mutation, feat[184:630]))
+                        pssm_feature_sets.append(Features_PSSM(mapping, mutation, feat[630:799]))
+                        conservation_feature_sets.append(Features_Conservation(mapping, mutation, feat[799:1036]))
+                        homology_feature_sets.append(Features_Homology(mapping, mutation, feat[1036:1056]))
+                        structure_feature_sets.append(Features_Structure(mapping, mutation, feat[1056:1135]))
+                        function_feature_sets.append(Features_Function(mapping, mutation, feat[1135:]))
+                    
+                    self.write_mutations(output_records)
+                    self.write_formatted_outputs(output_records)
+                    self.write_features(sequence_feature_sets, substitution_feature_sets, pssm_feature_sets, conservation_feature_sets, homology_feature_sets, structure_feature_sets, function_feature_sets)
+
+                    self.create_status_file(job_dir, "COMPLETE")
+                
+                else:
+                    logging.warning(f'{job_dir} not written to database because files are mismatched in size. See concatenated file lengths below.')
+                    logging.warning(f"prop_pvals_pu: {len(pvals_pu)}")
+                    logging.warning(f"prop_scores_pu: {len(scores_pu)}")
+                    logging.warning(f"prop_types_pu: {len(prop_types_pu)}")
+                    logging.warning(f"motif_info: {len(motif_info)}")
+                    logging.warning(f"models: {len(models)}")
+                    logging.warning(f"notes: {len(notes)}")
+                    logging.warning(f"features: {len(feats)}")
+                    self.create_status_file(job_dir, "INCOMPLETE")
+
+            else:
+                self.create_status_file(job_dir, "INCOMPLETE")
 
     def initialize_existing_tuples(self):
         logging.warning('initializing mutations')
