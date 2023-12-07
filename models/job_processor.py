@@ -128,14 +128,18 @@ class Processor:
         """
         input_name = self.read_input_file(job_dir=job_dir)
 
-        sequence = str(next(iter(parse(job_dir/input_name, 'fasta').records)).seq)
-        mapping = self.get_or_create_mapping_obj(sequence)
+        try:
+            fasta_inputs = {r.id : str(r.seq) for r in parse(job_dir/input_name, 'fasta').records}
+        except AttributeError:
+            fasta_inputs = {r.id : str(r.seq) for r in parse(job_dir/input_name, 'fasta')}
+        mappings = {id_ : self.get_or_create_mapping_obj(seq) for id_, seq in fasta_inputs}
 
         output_name = self.read_output_file(job_dir=job_dir)
         output_df = pd.read_csv(job_dir / output_name)
         
-        mutations = [Mutation(mapping,sub,score) for sub,score in zip(output_df.Substitution.values,
-                                                                  output_df['MutPred2 score'].values)]
+        mutations = [Mutation(mappings[id_],sub,score) for id_,sub,score in zip(output_df.ID.values,
+                                                                          output_df.Substitution.values,
+                                                                          output_df['MutPred2 score'].values)]
         
         positions_pu = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.positions_pu_\d+.mat', key_value='positions_pu') #loadmat(job_dir/positions_pu_name)['positions_pu']
         positions_pu = np.concatenate((positions_pu,
@@ -164,14 +168,14 @@ class Processor:
             output_record = MutPred2Output(mutation,mechanisms)
             output_records.append(output_record)
             motif_mech = [m for m in output_record.mechanisms if m.name == "Motifs"][0]
-            motif_records += Motif.motifs_from_string(mapping, mutation,motifs.item(), motif_mech.posterior, motif_mech.p_value)
-            sequence_feature_sets.append(Features_Sequence(mapping, mutation, feat[:184]))
-            substitution_feature_sets.append(Features_Substitution(mapping, mutation, feat[184:630]))
-            pssm_feature_sets.append(Features_PSSM(mapping, mutation, feat[630:799]))
-            conservation_feature_sets.append(Features_Conservation(mapping, mutation, feat[799:1036]))
-            homology_feature_sets.append(Features_Homology(mapping, mutation, feat[1036:1056]))
-            structure_feature_sets.append(Features_Structure(mapping, mutation, feat[1056:1135]))
-            function_feature_sets.append(Features_Function(mapping, mutation, feat[1135:]))
+            motif_records += Motif.motifs_from_string(mutation.mapping, mutation,motifs.item(), motif_mech.posterior, motif_mech.p_value)
+            sequence_feature_sets.append(Features_Sequence(mutation.mapping, mutation, feat[:184]))
+            substitution_feature_sets.append(Features_Substitution(mutation.mapping, mutation, feat[184:630]))
+            pssm_feature_sets.append(Features_PSSM(mutation.mapping, mutation, feat[630:799]))
+            conservation_feature_sets.append(Features_Conservation(mutation.mapping, mutation, feat[799:1036]))
+            homology_feature_sets.append(Features_Homology(mutation.mapping, mutation, feat[1036:1056]))
+            structure_feature_sets.append(Features_Structure(mutation.mapping, mutation, feat[1056:1135]))
+            function_feature_sets.append(Features_Function(mutation.mapping, mutation, feat[1135:]))
 
         
         self.write_mutations(output_records)
