@@ -21,7 +21,7 @@ def insert_job_results(jobs_filepath=None,jobs_dirs_base=None,job_path=None, db_
         raise ValueError("specify either jobs_dirs_base or job_path or jobs_filepath")
     elif jobs_filepath is not None:
         jobs = [l.strip() for l in open(jobs_filepath).readlines()]
-        jobs = [j for j in jobs if os.path.isdir(j)]
+        jobs = [Path(j) for j in jobs if os.path.isdir(j)]
     elif jobs_dirs_base is not None:
         print(f"processing jobs in directory {jobs_dirs_base}")
         jobs_dirs_base = Path(jobs_dirs_base)
