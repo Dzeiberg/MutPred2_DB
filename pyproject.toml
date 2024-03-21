@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "igvf"
+version = "0.1.0"
+description = ""
+authors = ["Daniel Zeiberg <zeiberg.d@northeastern.edu>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+lmdb = "^1.4.1"
+lmdbm = "^0.0.5"
+ipykernel = "^6.29.3"
+mysql-connector-python = "^8.3.0"
+biopython = "^1.83"
+tqdm = "^4.66.2"
+pandas = "^2.2.1"
+
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.29.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
