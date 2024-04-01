@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sqlalchemy import create_engine
 
-cnx = create_engine('mysql+pymysql://plotter@localhost/MutPred2_DB')
+cnx = create_engine('mysql+pymysql://plotter@73.38.6.113/MutPred2_DB')
 
 proteins = pd.read_sql_query("SELECT DISTINCT sequence_mapping.ensembl_prot_id from variant INNER JOIN sequence_mapping on \
 variant.seq_hash=sequence_mapping.seq_hash", con=cnx)
