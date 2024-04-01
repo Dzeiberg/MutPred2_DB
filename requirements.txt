@@ -6,3 +6,6 @@ SQLAlchemy
 PyYAML
 fire
 mysql-connector-python
+seaborn
+matplotlib
+fire
