@@ -9,3 +9,4 @@ mysql-connector-python
 seaborn
 matplotlib
 fire
+pymysql
