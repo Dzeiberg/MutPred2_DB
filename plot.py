@@ -11,6 +11,9 @@ from sqlalchemy import create_engine
 
 user = st.secrets['DB_USER']
 ip = st.secrets['DB_ADDR']
+st.write(
+    "ip_addr_from_app_secrets: ",ip)
+
 cnx = create_engine(f'mysql+pymysql://{user}@{ip}/MutPred2_DB')
 
 proteins = pd.read_sql_query("SELECT DISTINCT sequence_mapping.ensembl_prot_id from variant INNER JOIN sequence_mapping on \
