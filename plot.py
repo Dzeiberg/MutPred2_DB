@@ -4,7 +4,7 @@ import numpy as np
 from Bio.PDB.Polypeptide import one_to_index,index_to_three,protein_letters_3to1
 from scipy.sparse import csr_array
 import numpy as np
-import pymysql.cursors
+# import pymysql.cursors
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sqlalchemy import create_engine
