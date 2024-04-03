@@ -4,25 +4,26 @@ import numpy as np
 from Bio.PDB.Polypeptide import one_to_index,index_to_three,protein_letters_3to1
 from scipy.sparse import csr_array
 import numpy as np
-import pymysql.cursors
+import mysql.connector
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sqlalchemy import create_engine
 
 user = st.secrets['DB_USER']
 db_ipaddr = st.secrets['DB_ADDR']
-st.write(
-    "ip_addr_from_app_secrets: ",db_ipaddr)
+db_pwd = st.secrets['DB_PWD']
 
-cnx = create_engine(f'mysql+pymysql://{user}@{db_ipaddr}/MutPred2_DB')
+con = mysql.connector.connect(user=user,
+                              host=db_ipaddr,
+                              password=db_pwd,
+                              database='MutPred2_DB')
 
-proteins = pd.read_sql_query("SELECT DISTINCT sequence_mapping.ensembl_prot_id from variant INNER JOIN sequence_mapping on \
-variant.seq_hash=sequence_mapping.seq_hash", con=cnx)
+proteins = pd.read_sql_query("SELECT DISTINCT sequence_mapping.ensembl_prot_id,sequence_mapping.gene_symbol from variant INNER JOIN sequence_mapping on \
+variant.seq_hash=sequence_mapping.seq_hash", con=con)
 
 def on_change():
     # QUERY DATABASE for variants
-    query = st.session_state.ensp
-    variants = pd.read_sql_query("SELECT * from variant INNER JOIN sequence_mapping on variant.seq_hash=sequence_mapping.seq_hash where sequence_mapping.ensembl_prot_id='{}';".format(query), con=cnx)
+    query = st.session_state.ensp.split("(")[0].strip()
+    variants = pd.read_sql_query("SELECT * from variant INNER JOIN sequence_mapping on variant.seq_hash=sequence_mapping.seq_hash where sequence_mapping.ensembl_prot_id='{}';".format(query), con=con)
     score_mat = csr_array((variants['score'].values,
                     ([one_to_index(r) for r in variants.alternate_aa], variants.position.values)))
     # create inticators for missing values
@@ -47,7 +48,7 @@ def on_change():
 
 
 text = st.selectbox('Ensembl Protein ID',
-    options=sorted(list(proteins.ensembl_prot_id.values)),
+    options=sorted(list(proteins.apply(lambda r: '{} ({})'.format(r['ensembl_prot_id'],r['gene_symbol']),axis=1).values),key=lambda s: s.split("(")[1][:-1]),
     index=0,on_change=on_change,key='ensp',
 )
 
