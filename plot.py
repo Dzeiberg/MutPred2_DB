@@ -24,6 +24,7 @@ def on_change():
     # QUERY DATABASE for variants
     query = st.session_state.ensp.split("(")[0].strip()
     variants = pd.read_sql_query("SELECT * from variant INNER JOIN sequence_mapping on variant.seq_hash=sequence_mapping.seq_hash where sequence_mapping.ensembl_prot_id='{}';".format(query), con=con)
+    variants = variants.loc[:,~variants.columns.duplicated()]
     score_mat = csr_array((variants['score'].values,
                     ([one_to_index(r) for r in variants.alternate_aa], variants.position.values)))
     # create inticators for missing values
@@ -41,10 +42,7 @@ def on_change():
     _ = ax.set_yticks(np.arange(20) + .5,[protein_letters_3to1[index_to_three(i)] for i in np.arange(20)],rotation=0)
     ax.set_title('MutPred2 scores for protein {} ({})'.format(query, symbol))
     g.set_facecolor('xkcd:silver')
-    # clear_output(wait=True)
-    # display(ax.figure)
-    # plt.close(ax.figure)
-    return fig
+    return fig,variants
 
 
 text = st.selectbox('Ensembl Protein ID',
@@ -52,5 +50,7 @@ text = st.selectbox('Ensembl Protein ID',
     index=0,on_change=on_change,key='ensp',
 )
 
-fig = on_change()
+fig,variants = on_change()
+df = variants.loc[:,['reference_aa','position', 'alternate_aa', 'score', 'ensembl_prot_id', "ensembl_nuc_id", 'ensembl_gene_id','gene_symbol','MANE_select']].reset_index(drop=True)
 st.pyplot(fig)
+st.dataframe(df)
