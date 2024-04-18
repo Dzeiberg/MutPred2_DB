@@ -23,4 +23,4 @@ class Variant:
                           'reference_aa': self.reference_aa,
                           'position': self.position,
                           'alternate_aa': self.alternate_aa,
-                          'mutpred_score': self.mutpred_score})
+                          'score': self.mutpred_score})

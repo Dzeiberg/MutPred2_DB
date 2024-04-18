@@ -13,14 +13,34 @@ from scipy.io import loadmat
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from typing import List,Dict
+from typing import List,Dict,Iterable
 import re
 import os
-from typing import Iterable
 
 class Processor:
 
-    def process(self, job_dir : Path):
+    def process(self, job_dir : Path) -> Dict[str,Sequence|List[Variant|\
+                                                                Features_Conservation|\
+                                                                Features_Function|\
+                                                                Features_Homology|\
+                                                                Features_PSSM|\
+                                                                Features_Sequence|\
+                                                                Features_Structure|\
+                                                                Features_Substitution|\
+                                                                Mechanism]]:
+        """
+        Process the output of a MutPred2 job
+
+        Parameters
+        ----------
+        job_dir : Path
+            The directory containing the output of a MutPred2 job
+        
+        Returns
+        -------
+        Dict[str,Sequence|List[Variant|Features_Conservation|Features_Function|Features_Homology|Features_PSSM|Features_Sequence|Features_Structure|Features_Substitution|Mechanism]]
+            A dictionary containing the sequence, variants, features, and mechanisms of the job
+        """
         sequence = self.make_sequence(job_dir)
         variants = self.make_variants(job_dir, sequence)
         mechanisms = self.make_mechanisms(job_dir, variants)
@@ -39,7 +59,7 @@ class Processor:
                     features_function=features_function,
                     mechanisms=mechanisms)
 
-    def make_sequence(self, job_dir : Path) -> str:
+    def make_sequence(self, job_dir : Path) -> Sequence:
         # seq = self.read_mat_files(job_dir, pattern='.*.txt.sequences.mat',key_value='sequences').item().item()
         seq = loadmat(f"{job_dir}/output.txt.sequences.mat")['sequences'].item().item()
         assert isinstance(seq,str), "Sequence must be a string, not {}".format(type(seq))
