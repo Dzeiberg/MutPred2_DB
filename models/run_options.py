@@ -5,6 +5,24 @@ class RunOption:
                         use_predicted_conservation_scores : bool,
                         skip_psi_blast : bool,
                         p_value_threshold : float) : 
+        """
+        Arguments used in computing MutPred2 results
+
+        Parameters
+        ----------
+        compute_homology_profile : bool
+            Whether to compute the homology profile of the sequence
+
+        use_predicted_conservation_scores : bool
+            Whether to use predicted conservation scores
+
+        skip_psi_blast : bool
+            Whether to skip PSI-BLAST
+
+        p_value_threshold : float
+            The threshold for the p-value
+
+        """
         self.compute_homology_profile = compute_homology_profile
         self.use_predicted_conservation_scores = use_predicted_conservation_scores
         self.skip_psi_blast = skip_psi_blast

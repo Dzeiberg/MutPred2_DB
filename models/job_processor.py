@@ -8,6 +8,7 @@ from .features_sequence import Features_Sequence
 from .features_structure import Features_Structure
 from .features_substitution import Features_Substitution
 from .mechanism import Mechanism
+from .sql_connection import SQL_Connection
 
 from scipy.io import loadmat
 import numpy as np
@@ -16,10 +17,12 @@ from pathlib import Path
 from typing import List,Dict,Iterable
 import re
 import os
+from tqdm import tqdm
 
 class Processor:
-
-    def process(self, job_dir : Path) -> Dict[str,Sequence|List[Variant|\
+    def __init__(self, sql_connection : SQL_Connection):
+        self.sql_connection = sql_connection
+    def process(self, job_dir : Path, **kwargs) -> Dict[str,Sequence|List[Variant|\
                                                                 Features_Conservation|\
                                                                 Features_Function|\
                                                                 Features_Homology|\
@@ -31,24 +34,45 @@ class Processor:
         """
         Process the output of a MutPred2 job
 
-        Parameters
+        Required Parameters
         ----------
         job_dir : Path
             The directory containing the output of a MutPred2 job
+
+        Run Option Arguments: See run_option.py for more information
+
         
+        
+        Optional Parameters
+        ----------
+        write_to_db : bool
+            Whether to write the results to a MySQL database
+
         Returns
         -------
         Dict[str,Sequence|List[Variant|Features_Conservation|Features_Function|Features_Homology|Features_PSSM|Features_Sequence|Features_Structure|Features_Substitution|Mechanism]]
             A dictionary containing the sequence, variants, features, and mechanisms of the job
         """
+        self.write_to_db = kwargs.get('write_to_db', False)
+        run_options = {k : kwargs.get(k) for k in ['compute_homology_profile',
+                                                    'use_predicted_conservation_scores',
+                                                    'skip_psi_blast',
+                                                    'p_value_threshold']}
+        option_id = self.sql_connection.query_runoption(**run_options)
         sequence = self.make_sequence(job_dir)
-        variants = self.make_variants(job_dir, sequence)
+        if self.write_to_db:
+            self.sql_connection.write_sequence(sequence)
+        variants = self.make_variants(job_dir, sequence, option_id)
+        if self.write_to_db:
+            variant_ids = self.sql_connection.write_variants(variants)
+            for i,v_id in enumerate(variant_ids):
+                variants[i].variant_id = v_id
         mechanisms = self.make_mechanisms(job_dir, variants)
         (features_sequence, features_substitution,
                 features_pssm, features_conservation,
                 features_homology, features_structure,
-                features_function) = self.make_features(job_dir, variants)
-        return dict(sequence=sequence,
+                features_function) = self.make_features(job_dir, variants, option_id)
+        results = dict(sequence=sequence,
                     variants=variants,
                     features_sequence=features_sequence,
                     features_substitution=features_substitution,
@@ -58,6 +82,30 @@ class Processor:
                     features_structure=features_structure,
                     features_function=features_function,
                     mechanisms=mechanisms)
+
+        if self.write_to_db:
+            self.write({k : v for k,v in results.items() if k not in ['sequence','variants']})
+
+        return results
+
+    def write(self, results : Dict[str,Sequence|List[Variant|\
+                                                                Features_Conservation|\
+                                                                Features_Function|\
+                                                                Features_Homology|\
+                                                                Features_PSSM|\
+                                                                Features_Sequence|\
+                                                                Features_Structure|\
+                                                                Features_Substitution|\
+                                                                Mechanism]]) -> None:
+        self.sql_connection.write_mechanisms(results['mechanisms'])
+        for k in tqdm(['features_sequence',
+                    'features_substitution',
+                    'features_pssm',
+                    'features_conservation',
+                    'features_homology',
+                    'features_structure',
+                    'features_function'],desc="Writing features",leave=False):
+            self.sql_connection.write_feature_sets(results[k], k)
 
     def make_sequence(self, job_dir : Path) -> Sequence:
         # seq = self.read_mat_files(job_dir, pattern='.*.txt.sequences.mat',key_value='sequences').item().item()
@@ -79,10 +127,10 @@ class Processor:
             scores = df.loc[:,'MutPred2 score'].values.astype(float)
         return scores
 
-    def make_variants(self, job_dir : Path, sequence : Sequence) -> Iterable[Variant]:
+    def make_variants(self, job_dir : Path, sequence : Sequence, option_id : int) -> Iterable[Variant]:
         substitutions = self.read_substitutions(job_dir)
         scores = self.read_mutpred2_scores(job_dir)
-        variants = [Variant(sequence.seq_hash,sub,score) for sub,score in zip(substitutions,scores)]
+        variants = [Variant(sequence.seq_hash,sub,score, option_id) for sub,score in zip(substitutions,scores)]
         self.validate_variants(variants,sequence)
         return variants
 
@@ -123,7 +171,7 @@ class Processor:
                     prop_types_pu=prop_types_pu,
                     motif_info=motif_info)
 
-    def make_features(self, job_dir : Path, variants : List[Variant]):
+    def make_features(self, job_dir : Path, variants : List[Variant], option_id : int):
         features = self.read_mat_files(job_dir=job_dir, pattern='.*.txt.feats_\d+.mat', key_value='feats')
         features_conservation = []
         features_function = []
@@ -133,13 +181,13 @@ class Processor:
         features_structure = []
         features_substitution = []
         for i,(variant,feats) in enumerate(zip(variants, features)):
-            features_sequence.append(Features_Sequence(variant.seq_hash, feats[:184]))
-            features_substitution.append(Features_Substitution(variant.seq_hash, feats[184:630]))
-            features_pssm.append(Features_PSSM(variant.seq_hash, feats[630:799]))
-            features_conservation.append(Features_Conservation(variant.seq_hash, feats[799:1036]))
-            features_homology.append(Features_Homology(variant.seq_hash, feats[1036:1056]))
-            features_structure.append(Features_Structure(variant.seq_hash, feats[1056:1135]))
-            features_function.append(Features_Function(variant.seq_hash, feats[1135:]))
+            features_sequence.append(Features_Sequence(variant.variant_id, option_id, feats[:184]))
+            features_substitution.append(Features_Substitution(variant.variant_id, option_id, feats[184:630]))
+            features_pssm.append(Features_PSSM(variant.variant_id, option_id, feats[630:799]))
+            features_conservation.append(Features_Conservation(variant.variant_id, option_id, feats[799:1036]))
+            features_homology.append(Features_Homology(variant.variant_id, option_id, feats[1036:1056]))
+            features_structure.append(Features_Structure(variant.variant_id, option_id, feats[1056:1135]))
+            features_function.append(Features_Function(variant.variant_id, option_id, feats[1135:]))
         return (features_sequence, features_substitution,
                 features_pssm, features_conservation,
                 features_homology, features_structure,
@@ -157,7 +205,7 @@ class Processor:
                                                                                                                 'scores_pu',
                                                                                                                 'prop_types_pu']])):
                 mechanisms.append(Mechanism(mechanism_idx,
-                                            variant.seq_hash,
+                                            variant.variant_id,
                                             position,
                                             pvalue,
                                             score,

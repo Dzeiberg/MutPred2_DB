@@ -1,5 +1,7 @@
 import typing
 import pandas as pd
+import numpy as np
+
 class Mechanism:
     altered_set = set(('N_terminal_signal', 'Signal_helix',
                                         'C_terminal_signal', 'Signal_cleavage',
@@ -42,6 +44,8 @@ class Mechanism:
         self.pvalue = pvalue
         self.process_alterred_position(altered_position)
         self.description = description
+        if isinstance(self.description,np.ndarray):
+            self.description = self.description.item()
 
     def process_mechanism_type(self, mechanism_type : int) -> None:
         if Mechanism.mechanism_order[self.mechanism_id] in Mechanism.altered_set:

@@ -5,8 +5,9 @@ from Bio.PDB.Polypeptide import protein_letters_3to1
 RESIDUES = set(protein_letters_3to1 .values())
 
 class Variant:
-    def __init__(self, seq_hash : str, substitution: str, mutpred_score: float):
+    def __init__(self, seq_hash : str, substitution: str, mutpred_score: float, option_id: int):
         self.seq_hash = seq_hash
+        self.option_id = option_id
         self.parse_substitution(substitution)
 
         self.mutpred_score = mutpred_score
@@ -23,4 +24,5 @@ class Variant:
                           'reference_aa': self.reference_aa,
                           'position': self.position,
                           'alternate_aa': self.alternate_aa,
-                          'score': self.mutpred_score})
+                          'score': self.mutpred_score,
+                          'option_id': self.option_id})
