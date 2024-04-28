@@ -61,12 +61,15 @@ class Mechanism:
         else:
             self.position = int(altered_position)
 
-    def to_series(self):
-        d = dict(variant_id = self.variant_id,
+    def to_dict(self):
+        return dict(variant_id = self.variant_id,
                 mechanism_id=self.mechanism_id,
                 mechanism_type=self.mechanism_type,
                 altered_position=self.position,
                 description=self.description,
                 score=self.score,
                 pvalue=self.pvalue)
+
+    def to_series(self):
+        d = self.to_dict()
         return pd.Series(d)

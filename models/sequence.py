@@ -7,8 +7,8 @@ from sqlalchemy.engine import Engine
 class Sequence:
     def __init__(self,seq):
         self.seq = seq
-        h = hashlib.new('md5')
-        h.update(self.seq.encode('utf-8'))
+        # h = hashlib.new('md5')
+        # h.update(self.seq.encode('utf-8'))
         self.seq_hash = Sequence.get_sequence_hash(seq)
 
     def to_series(self):

@@ -8,7 +8,7 @@ from .features_sequence import Features_Sequence
 from .features_structure import Features_Structure
 from .features_substitution import Features_Substitution
 from .mechanism import Mechanism
-from .sql_connection import SQL_Connection
+from .sql_connection import write_sequence,write_variants,query_runoption,write_mechanisms,write_feature_sets
 
 from scipy.io import loadmat
 import numpy as np
@@ -20,8 +20,10 @@ import os
 from tqdm import tqdm
 
 class Processor:
-    def __init__(self, sql_connection : SQL_Connection):
-        self.sql_connection = sql_connection
+    def __init__(self, cursor, cnx):
+        self.cursor = cursor
+        self.cnx = cnx
+
     def process(self, job_dir : Path, **kwargs) -> Dict[str,Sequence|List[Variant|\
                                                                 Features_Conservation|\
                                                                 Features_Function|\
@@ -53,20 +55,20 @@ class Processor:
         Dict[str,Sequence|List[Variant|Features_Conservation|Features_Function|Features_Homology|Features_PSSM|Features_Sequence|Features_Structure|Features_Substitution|Mechanism]]
             A dictionary containing the sequence, variants, features, and mechanisms of the job
         """
-        self.write_to_db = kwargs.get('write_to_db', False)
+        self.write_to_db = kwargs.get('write_to_db', True)
         run_options = {k : kwargs.get(k) for k in ['compute_homology_profile',
                                                     'use_predicted_conservation_scores',
                                                     'skip_psi_blast',
                                                     'p_value_threshold']}
-        option_id = self.sql_connection.query_runoption(**run_options)
+        option_id = query_runoption(self.cursor, self.cnx,**run_options)
         sequence = self.make_sequence(job_dir)
         if self.write_to_db:
-            self.sql_connection.write_sequence(sequence)
+            write_sequence(self.cursor, self.cnx,sequence)
         variants = self.make_variants(job_dir, sequence, option_id)
         if self.write_to_db:
-            variant_ids = self.sql_connection.write_variants(variants)
-            for i,v_id in enumerate(variant_ids):
-                variants[i].variant_id = v_id
+            _ = write_variants(self.cursor, self.cnx,variants)
+            # for i,v_id in enumerate(variant_ids):
+            #     variants[i].variant_id = v_id
         mechanisms = self.make_mechanisms(job_dir, variants)
         (features_sequence, features_substitution,
                 features_pssm, features_conservation,
@@ -97,7 +99,7 @@ class Processor:
                                                                 Features_Structure|\
                                                                 Features_Substitution|\
                                                                 Mechanism]]) -> None:
-        self.sql_connection.write_mechanisms(results['mechanisms'])
+        write_mechanisms(self.cursor, self.cnx,results['mechanisms'])
         for k in tqdm(['features_sequence',
                     'features_substitution',
                     'features_pssm',
@@ -105,7 +107,7 @@ class Processor:
                     'features_homology',
                     'features_structure',
                     'features_function'],desc="Writing features",leave=False):
-            self.sql_connection.write_feature_sets(results[k], k)
+            write_feature_sets(self.cursor, self.cnx,results[k], k)
 
     def make_sequence(self, job_dir : Path) -> Sequence:
         # seq = self.read_mat_files(job_dir, pattern='.*.txt.sequences.mat',key_value='sequences').item().item()

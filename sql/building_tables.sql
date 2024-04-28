@@ -16,7 +16,7 @@ CREATE TABLE RunOption (
         p_value_threshold));
 
 CREATE TABLE Variant (
-        variant_id int PRIMARY KEY AUTO_INCREMENT,
+        variant_id CHAR(32) PRIMARY KEY NOT NULL,
         seq_hash CHAR(32),
         reference_aa CHAR(1) NOT NULL,
         position int NOT NULL,
@@ -35,7 +35,7 @@ CREATE TABLE Mechanism(
 CREATE TABLE VariantMechanism(
         variant_mechanism_id int NOT NULL PRIMARY KEY AUTO_INCREMENT,
         mechanism_id int NOT NULL,
-        variant_id int NOT NULL,
+        variant_id CHAR(32) NOT NULL,
         mechanism_type ENUM('gain','loss','altered') NOT NULL,
         altered_position int,
         description text,
@@ -57,7 +57,7 @@ CREATE TABLE SequenceMapping(
 CREATE INDEX ensembl_transcript_idx ON SequenceMapping (ensembl_nuc_id(17));
 
 CREATE TABLE notes(
-    variant_id int UNIQUE NOT NULL,
+    variant_id CHAR(32) UNIQUE NOT NULL,
     FOREIGN KEY (variant_id) REFERENCES Variant(variant_id),
     model TEXT,
     notes TEXT,
@@ -66,7 +66,7 @@ CREATE TABLE notes(
 
 CREATE TABLE features_sequence (
         feature_set_id int NOT NULL PRIMARY KEY AUTO_INCREMENT,
-        variant_id int NOT NULL,
+        variant_id CHAR(32) NOT NULL,
         FOREIGN KEY (variant_id) REFERENCES Variant(variant_id),
         runoption_id int NOT NULL,
         FOREIGN KEY (runoption_id) REFERENCES RunOption(option_id),
@@ -258,7 +258,7 @@ CREATE TABLE features_sequence (
 
 CREATE TABLE features_substitution (
         feature_set_id int NOT NULL PRIMARY KEY AUTO_INCREMENT,
-        variant_id int NOT NULL,
+        variant_id CHAR(32) NOT NULL,
         FOREIGN KEY (variant_id) REFERENCES Variant(variant_id),
         runoption_id int NOT NULL,
         FOREIGN KEY (runoption_id) REFERENCES RunOption(option_id),
@@ -714,7 +714,7 @@ CREATE TABLE features_substitution (
 
 CREATE TABLE features_pssm (
         feature_set_id int NOT NULL PRIMARY KEY AUTO_INCREMENT,
-        variant_id int NOT NULL,
+        variant_id CHAR(32) NOT NULL,
         FOREIGN KEY (variant_id) REFERENCES Variant(variant_id),
         runoption_id int NOT NULL,
         FOREIGN KEY (runoption_id) REFERENCES RunOption(option_id),
@@ -893,7 +893,7 @@ CREATE TABLE features_pssm (
 
 CREATE TABLE features_conservation (
         feature_set_id int NOT NULL PRIMARY KEY AUTO_INCREMENT,
-        variant_id int NOT NULL,
+        variant_id CHAR(32) NOT NULL,
         FOREIGN KEY (variant_id) REFERENCES Variant(variant_id),
         runoption_id int NOT NULL,
         FOREIGN KEY (runoption_id) REFERENCES RunOption(option_id),
@@ -1140,7 +1140,7 @@ CREATE TABLE features_conservation (
 
 CREATE TABLE features_homology (
         feature_set_id int NOT NULL PRIMARY KEY AUTO_INCREMENT,
-        variant_id int NOT NULL,
+        variant_id CHAR(32) NOT NULL,
         FOREIGN KEY (variant_id) REFERENCES Variant(variant_id),
         runoption_id int NOT NULL,
         FOREIGN KEY (runoption_id) REFERENCES RunOption(option_id),
@@ -1170,7 +1170,7 @@ CREATE TABLE features_homology (
 
 CREATE TABLE features_structure (
         feature_set_id int NOT NULL PRIMARY KEY AUTO_INCREMENT,
-        variant_id int NOT NULL,
+        variant_id CHAR(32) NOT NULL,
         FOREIGN KEY (variant_id) REFERENCES Variant(variant_id),
         runoption_id int NOT NULL,
         FOREIGN KEY (runoption_id) REFERENCES RunOption(option_id),
@@ -1259,7 +1259,7 @@ CREATE TABLE features_structure (
 
 CREATE TABLE features_function (
         feature_set_id int NOT NULL PRIMARY KEY AUTO_INCREMENT,
-        variant_id int NOT NULL,
+        variant_id CHAR(32) NOT NULL,
         FOREIGN KEY (variant_id) REFERENCES Variant(variant_id),
         runoption_id int NOT NULL,
         FOREIGN KEY (runoption_id) REFERENCES RunOption(option_id),
@@ -1477,3 +1477,65 @@ CREATE TABLE features_function (
 
 
 
+
+
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (0, 'VSL2B_disorder');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (1, 'B_factor');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (2, 'Surface_accessibility');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (3, 'Helix');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (4, 'Strand');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (5, 'Loop');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (6, 'N_terminal_signal');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (7, 'Signal_helix');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (8, 'C_terminal_signal');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (9, 'Signal_cleavage');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (10, 'Intracellular_loop');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (11, 'Transmembrane_region');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (12, 'Extracellular_loop');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (13, 'Non_transmembrane');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (14, 'Coiled_coil');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (15, 'Catalytic_site');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (16, 'Calmodulin_binding');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (17, 'DNA_binding');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (18, 'RNA_binding');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (19, 'PPI_residue');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (20, 'PPI_hotspot');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (21, 'MoRF');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (22, 'Allosteric_site');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (23, 'Cadmium_binding');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (24, 'Calcium_binding');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (25, 'Cobalt_binding');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (26, 'Copper_binding');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (27, 'Iron_binding');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (28, 'Magnesium_binding');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (29, 'Manganese_binding');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (30, 'Nickel_binding');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (31, 'Potassium_binding');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (32, 'Sodium_binding');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (33, 'Zinc_binding');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (34, 'Acetylation');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (35, 'ADP_ribosylation');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (36, 'Amidation');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (37, 'C_linked_glycosylation');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (38, 'Carboxylation');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (39, 'Disulfide_linkage');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (40, 'Farnesylation');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (41, 'Geranylgeranylation');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (42, 'GPI_anchor_amidation');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (43, 'Hydroxylation');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (44, 'Methylation');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (45, 'Myristoylation');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (46, 'N_linked_glycosylation');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (47, 'N_terminal_acetylation');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (48, 'O_linked_glycosylation');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (49, 'Palmitoylation');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (50, 'Phosphorylation');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (51, 'Proteolytic_cleavage');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (52, 'Pyrrolidone_carboxylic_acid');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (53, 'Sulfation');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (54, 'SUMOylation');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (55, 'Ubiquitylation');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (56, 'Motifs');
+INSERT IGNORE INTO Mechanism (mechanism_id, name) VALUES (57, 'Stability');
+
+INSERT INTO RunOption (compute_homology_profile, use_predicted_conservation_scores, skip_psi_blast, p_value_threshold) VALUES (1, 1, 0, 1);

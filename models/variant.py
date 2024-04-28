@@ -1,7 +1,7 @@
 # from .sequence_mapping import SequenceMapping
 import pandas as pd
 from Bio.PDB.Polypeptide import protein_letters_3to1
-
+import hashlib
 RESIDUES = set(protein_letters_3to1 .values())
 
 class Variant:
@@ -9,7 +9,8 @@ class Variant:
         self.seq_hash = seq_hash
         self.option_id = option_id
         self.parse_substitution(substitution)
-
+        hashstr = f"{self.seq_hash}{self.reference_aa}{self.position}{self.alternate_aa}{self.option_id}"
+        self.variant_id = hashlib.md5(hashstr.encode(encoding='utf-8')).hexdigest()
         self.mutpred_score = mutpred_score
 
     def parse_substitution(self, substitution: str):
