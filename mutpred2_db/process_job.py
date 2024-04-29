@@ -36,9 +36,16 @@ class FileConnection:
         self._cursor.file.flush()
 
 
-def process_job_list(job_list_file : str, sql_config_name : str, sql_config_file : str,**run_option_kwargs):
-    with open(job_list_file,'r') as file:
-        job_list = list(map(str.strip, file.readlines()))
+def process_job_list(sql_config_name : str, sql_config_file : str,
+                    job_list_file : str|None=None,
+                    job_path : str|None=None,**run_option_kwargs):
+    if job_list_file is None:
+        with open(job_list_file,'r') as file:
+            job_list = list(map(str.strip, file.readlines()))
+    elif job_path is not None:
+        job_list = [job_path, ]
+    else:
+        raise ValueError("Either job_list_file or job_path must be provided")
     sql_connection = SQL_Connection(sql_config_name, sql_config_file)
     cursor, cnx = sql_connection.open()
     # cnx = FileConnection("initialize.sql")
@@ -58,9 +65,6 @@ def process_job_list(job_list_file : str, sql_config_name : str, sql_config_file
                 sql_config_name,
                 sql_config_file,
                 **run_option_kwargs) for job in tqdm(job_list)]
+
 if __name__ == "__main__":
     Fire(process_job_list)
-
-
-    def close(self):
-        pass
