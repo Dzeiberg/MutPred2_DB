@@ -124,6 +124,7 @@ class Processor:
     def read_mutpred2_scores(self, job_dir : Path) -> Iterable[float]:
         try:
             scores = self.read_mat_files(job_dir, pattern='.*.txt.MutPred2Score_\d+.mat',key_value='S')
+            scores = np.array([s.item() for s in scores.ravel()])
         except AttributeError:
             df = pd.read_csv(f"{job_dir}/output.txt")
             scores = df.loc[:,'MutPred2 score'].values.astype(float)
