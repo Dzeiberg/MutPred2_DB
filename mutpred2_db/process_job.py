@@ -39,7 +39,7 @@ class FileConnection:
 def process_job_list(sql_config_name : str, sql_config_file : str,
                     job_list_file : str|None=None,
                     job_path : str|None=None,**run_option_kwargs):
-    if job_list_file is None:
+    if job_list_file is not None:
         with open(job_list_file,'r') as file:
             job_list = list(map(str.strip, file.readlines()))
     elif job_path is not None:
