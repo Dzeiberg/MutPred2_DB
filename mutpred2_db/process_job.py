@@ -2,6 +2,8 @@ from models.job_processor import Processor
 from models.sql_connection import SQL_Connection, initialize_mechanisms
 from fire import Fire
 from sqlalchemy.exc import DatabaseError
+import mysql.connector
+
 from tqdm import tqdm
 # tqdm.__init__ = partialmethod(tqdm.__init__, disable=True)
 
@@ -53,7 +55,7 @@ def process_job_list(sql_config_name : str, sql_config_file : str,
     for job in tqdm(job_list):
         try:
             process_job(cursor, cnx, job, sql_config_name, sql_config_file, **run_option_kwargs)
-        except DatabaseError as e:
+        except (DatabaseError, mysql.connector.errors.DatabaseError) as e:
             print(f"JOB_ERROR: Error processing {job}")
             failed_jobs.append(job)
             print(e)
