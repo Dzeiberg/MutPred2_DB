@@ -42,6 +42,7 @@ class SQL_Connection(object):
     def __exit__(self):
         # self.cursor.close()
         # self.cnx.close()
+        self.pool.close()
         super().__exit__()
 
 def write_sequence(cursor, cnx,sequence : Sequence) -> int:
