@@ -1,11 +1,28 @@
+USE MutPred_suite;
 
-USE MutPred2_DB;
+SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS `Protein`;
+DROP TABLE IF EXISTS `RunOption`;
+DROP TABLE IF EXISTS `Variant`;
+DROP TABLE IF EXISTS `Mechanism`;
+DROP TABLE IF EXISTS `VariantMechanism`;
+DROP TABLE IF EXISTS `SequenceMapping`;
+DROP TABLE IF EXISTS `notes`;
+DROP TABLE IF EXISTS `features_sequence`;
+DROP TABLE IF EXISTS `features_substitution`;
+DROP TABLE IF EXISTS `features_pssm`;
+DROP TABLE IF EXISTS `features_conservation`;
+DROP TABLE IF EXISTS `features_homology`;
+DROP TABLE IF EXISTS `features_structure`;
+DROP TABLE IF EXISTS `features_function`;
+SET FOREIGN_KEY_CHECKS = 1;
+
 CREATE TABLE Protein (
         seq_hash CHAR(32) PRIMARY KEY NOT NULL,
         sequence TEXT(35000) NOT NULL);
 
 CREATE TABLE RunOption (
-        option_id int PRIMARY KEY AUTO_INCREMENT,
+        option_id int UNSIGNED PRIMARY KEY AUTO_INCREMENT,
         compute_homology_profile BIT(1),
         use_predicted_conservation_scores BIT(1),
         skip_psi_blast BIT(1),
@@ -19,25 +36,25 @@ CREATE TABLE Variant (
         variant_id CHAR(32) PRIMARY KEY NOT NULL,
         seq_hash CHAR(32),
         reference_aa CHAR(1) NOT NULL,
-        position int NOT NULL,
+        position int UNSIGNED NOT NULL,
         alternate_aa CHAR(1) NOT NULL,
         score DECIMAL(4,3) NOT NULL,
-        option_id int NOT NULL,
+        option_id int UNSIGNED NOT NULL,
         UNIQUE (seq_hash,reference_aa,position,alternate_aa, option_id),
         FOREIGN KEY (seq_hash) REFERENCES Protein(seq_hash),
         FOREIGN KEY (option_id) REFERENCES RunOption(option_id));
 
 
 CREATE TABLE Mechanism(
-    mechanism_id int NOT NULL PRIMARY KEY,
+    mechanism_id int UNSIGNED NOT NULL PRIMARY KEY,
     name TEXT NOT NULL);
 
 CREATE TABLE VariantMechanism(
-        variant_mechanism_id int NOT NULL PRIMARY KEY AUTO_INCREMENT,
-        mechanism_id int NOT NULL,
+        variant_mechanism_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE,
+        mechanism_id int UNSIGNED NOT NULL,
         variant_id CHAR(32) NOT NULL,
         mechanism_type ENUM('gain','loss','altered') NOT NULL,
-        altered_position int,
+        altered_position int UNSIGNED,
         description text,
         score DECIMAL(4,3) NOT NULL,
         pvalue DECIMAL(4,3) NOT NULL,
@@ -65,10 +82,10 @@ CREATE TABLE notes(
 
 
 CREATE TABLE features_sequence (
-        feature_set_id int NOT NULL PRIMARY KEY AUTO_INCREMENT,
+        feature_set_id int UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
         variant_id CHAR(32) NOT NULL,
         FOREIGN KEY (variant_id) REFERENCES Variant(variant_id),
-        runoption_id int NOT NULL,
+        runoption_id int UNSIGNED NOT NULL,
         FOREIGN KEY (runoption_id) REFERENCES RunOption(option_id),
         CONSTRAINT UC_FeatureSet UNIQUE (variant_id, runoption_id),
         AA_frequency_A_3 FLOAT(5),
@@ -257,10 +274,10 @@ CREATE TABLE features_sequence (
         Amino_acid_volume_max_21 FLOAT(5));
 
 CREATE TABLE features_substitution (
-        feature_set_id int NOT NULL PRIMARY KEY AUTO_INCREMENT,
+        feature_set_id int UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
         variant_id CHAR(32) NOT NULL,
         FOREIGN KEY (variant_id) REFERENCES Variant(variant_id),
-        runoption_id int NOT NULL,
+        runoption_id int UNSIGNED NOT NULL,
         FOREIGN KEY (runoption_id) REFERENCES RunOption(option_id),
         CONSTRAINT UC_FeatureSet UNIQUE (variant_id, runoption_id),
         BLOSUM30 FLOAT(5),
@@ -713,10 +730,10 @@ CREATE TABLE features_substitution (
 
 
 CREATE TABLE features_pssm (
-        feature_set_id int NOT NULL PRIMARY KEY AUTO_INCREMENT,
+        feature_set_id int UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
         variant_id CHAR(32) NOT NULL,
         FOREIGN KEY (variant_id) REFERENCES Variant(variant_id),
-        runoption_id int NOT NULL,
+        runoption_id int UNSIGNED NOT NULL,
         FOREIGN KEY (runoption_id) REFERENCES RunOption(option_id),
         CONSTRAINT UC_FeatureSet UNIQUE (variant_id, runoption_id),
         Substitution_score_mean_A_1 FLOAT(5),
@@ -892,10 +909,10 @@ CREATE TABLE features_pssm (
 
 
 CREATE TABLE features_conservation (
-        feature_set_id int NOT NULL PRIMARY KEY AUTO_INCREMENT,
+        feature_set_id int UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
         variant_id CHAR(32) NOT NULL,
         FOREIGN KEY (variant_id) REFERENCES Variant(variant_id),
-        runoption_id int NOT NULL,
+        runoption_id int UNSIGNED NOT NULL,
         FOREIGN KEY (runoption_id) REFERENCES RunOption(option_id),
         CONSTRAINT UC_FeatureSet UNIQUE (variant_id, runoption_id),
         Transition_frequencies_wild1 FLOAT(5),
@@ -1139,10 +1156,10 @@ CREATE TABLE features_conservation (
 
 
 CREATE TABLE features_homology (
-        feature_set_id int NOT NULL PRIMARY KEY AUTO_INCREMENT,
+        feature_set_id int UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
         variant_id CHAR(32) NOT NULL,
         FOREIGN KEY (variant_id) REFERENCES Variant(variant_id),
-        runoption_id int NOT NULL,
+        runoption_id int UNSIGNED NOT NULL,
         FOREIGN KEY (runoption_id) REFERENCES RunOption(option_id),
         CONSTRAINT UC_FeatureSet UNIQUE (variant_id, runoption_id),
         Homology_count_human_50 FLOAT(5),
@@ -1169,10 +1186,10 @@ CREATE TABLE features_homology (
 
 
 CREATE TABLE features_structure (
-        feature_set_id int NOT NULL PRIMARY KEY AUTO_INCREMENT,
+        feature_set_id int UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
         variant_id CHAR(32) NOT NULL,
         FOREIGN KEY (variant_id) REFERENCES Variant(variant_id),
-        runoption_id int NOT NULL,
+        runoption_id int UNSIGNED NOT NULL,
         FOREIGN KEY (runoption_id) REFERENCES RunOption(option_id),
         CONSTRAINT UC_FeatureSet UNIQUE (variant_id, runoption_id),
         VSL2B_disorder_wild FLOAT(5),
@@ -1258,10 +1275,10 @@ CREATE TABLE features_structure (
 
 
 CREATE TABLE features_function (
-        feature_set_id int NOT NULL PRIMARY KEY AUTO_INCREMENT,
+        feature_set_id int UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
         variant_id CHAR(32) NOT NULL,
         FOREIGN KEY (variant_id) REFERENCES Variant(variant_id),
-        runoption_id int NOT NULL,
+        runoption_id int UNSIGNED NOT NULL,
         FOREIGN KEY (runoption_id) REFERENCES RunOption(option_id),
         CONSTRAINT UC_FeatureSet UNIQUE (variant_id, runoption_id),
         Catalytic_site_wild FLOAT(5),
