@@ -1,2 +1,16 @@
 sql_configs.yaml
 **/*.pyc
+.DS_Store
+01_MySQL_DB.ipynb
+db_records_08_29_24.zip
+features_conservation.txt
+initialize.sql
+job_list.txt
+MANE.GRCh38.v1.3.ensembl_protein.faa.gz
+MANE.GRCh38.v1.3.ensembl_protein.gz
+test_job_list.txt
+.streamlit/secrets.toml
+db_records_08_29_24/features_substitution.csv
+db_records_08_29_24/sequence_mapping_table.txt
+db_records_08_29_24/variant_table.txt
+sql/insert_variants.sql
