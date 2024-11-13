@@ -1,3 +1,4 @@
+Create database if not exists MutPred_suite;
 USE MutPred_suite;
 
 SET FOREIGN_KEY_CHECKS = 0;
