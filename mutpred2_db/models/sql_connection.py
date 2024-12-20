@@ -45,14 +45,14 @@ class SQL_Connection(object):
         self.pool.close()
         super().__exit__()
 
-def write_sequence(cursor, cnx,sequence : Sequence) -> int:
+def write_sequences(cursor, cnx,sequences : List[Sequence]) -> int:
     add_sequence = ("INSERT INTO Protein "
             "(seq_hash, sequence) "
             "VALUES (%s, %s)"
             "ON DUPLICATE KEY UPDATE seq_hash=seq_hash, sequence=sequence;")
-    data_sequence = (sequence.seq_hash, sequence.seq)
-    cursor.execute(add_sequence, data_sequence)
-    sequence_number = 0#cursor.lastrowid
+    data_sequences = [(sequence.seq_hash, sequence.seq) for sequence in sequences]
+    cursor.executemany(add_sequence, data_sequences)
+    sequence_number = cursor.lastrowid
     cnx.commit()
     return sequence_number
 

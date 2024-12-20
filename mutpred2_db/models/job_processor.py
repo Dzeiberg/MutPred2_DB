@@ -8,7 +8,7 @@ from .features_sequence import Features_Sequence
 from .features_structure import Features_Structure
 from .features_substitution import Features_Substitution
 from .mechanism import Mechanism
-from .sql_connection import write_sequence,write_variants,query_runoption,write_mechanisms,write_feature_sets
+from .sql_connection import write_sequences,write_variants,query_runoption,write_mechanisms,write_feature_sets
 
 from scipy.io import loadmat
 import numpy as np
@@ -61,10 +61,10 @@ class Processor:
                                                     'skip_psi_blast',
                                                     'p_value_threshold']}
         option_id = query_runoption(self.cursor, self.cnx,**run_options)
-        sequence = self.make_sequence(job_dir)
+        sequences = self.make_sequences(job_dir)
         if self.write_to_db:
-            write_sequence(self.cursor, self.cnx,sequence)
-        variants = self.make_variants(job_dir, sequence, option_id)
+            write_sequences(self.cursor, self.cnx,sequences)
+        variants = self.make_variants(job_dir, sequences, option_id)
         if self.write_to_db:
             _ = write_variants(self.cursor, self.cnx,variants)
             # for i,v_id in enumerate(variant_ids):
@@ -74,7 +74,7 @@ class Processor:
                 features_pssm, features_conservation,
                 features_homology, features_structure,
                 features_function) = self.make_features(job_dir, variants, option_id)
-        results = dict(sequence=sequence,
+        results = dict(sequences=sequences,
                     variants=variants,
                     features_sequence=features_sequence,
                     features_substitution=features_substitution,
@@ -109,33 +109,40 @@ class Processor:
                     'features_function'],desc="Writing features",leave=False):
             write_feature_sets(self.cursor, self.cnx,results[k], k)
 
-    def make_sequence(self, job_dir : Path) -> Sequence:
+    def make_sequences(self, job_dir : Path) -> List[Sequence]:
         # seq = self.read_mat_files(job_dir, pattern='.*.txt.sequences.mat',key_value='sequences').item().item()
-        seq = loadmat(f"{job_dir}/output.txt.sequences.mat")['sequences'].item().item()
-        assert isinstance(seq,str), "Sequence must be a string, not {}".format(type(seq))
-        return Sequence(seq)
+        # seq = loadmat(f"{job_dir}/output.txt.sequences.mat")['sequences'].item().item()
+        sequences = [v.item() for v in loadmat(f"{job_dir}/output.txt.sequences.mat")['sequences'].tolist()[0]]
+        assert all([isinstance(seq,str) for seq in sequences]), "Sequence must be all be strings, not {}".format([type(seq) for seq in sequences])
+        return [Sequence(seq) for seq in sequences]
 
     def read_substitutions(self, job_dir : Path) -> List[str]:
         # subs = self.read_mat_files(job_dir, pattern='.*.txt.substitutions.mat',key_value='substitutions')
         subs = loadmat(f"{job_dir}/output.txt.substitutions.mat")['substitutions']
-        substitutions = list(map(lambda i : i.item(),subs.item().ravel()))
+        # substitutions = list(map(lambda i : i.item(),subs.item().ravel()))
+        substitutions = [[s.item().item() for s in subList] for subList in subs[0]]
         return substitutions
 
     def read_mutpred2_scores(self, job_dir : Path) -> Iterable[float]:
         try:
-            scores = self.read_mat_files(job_dir, pattern='.*.txt.MutPred2Score_\d+.mat',key_value='S')
-            scores = np.array([s.item() for s in scores.ravel()])
+            scores = self.read_mat_files(job_dir, pattern='.*.txt.MutPred2Score_\d+.mat',key_value='S').squeeze()
         except AttributeError:
             df = pd.read_csv(f"{job_dir}/output.txt")
             scores = df.loc[:,'MutPred2 score'].values.astype(float)
         return scores
 
-    def make_variants(self, job_dir : Path, sequence : Sequence, option_id : int) -> Iterable[Variant]:
+    def make_variants(self, job_dir : Path, sequences : List[Sequence], option_id : int) -> Iterable[Variant]:
         substitutions = self.read_substitutions(job_dir)
         scores = self.read_mutpred2_scores(job_dir)
-        variants = [Variant(sequence.seq_hash,sub,score, option_id) for sub,score in zip(substitutions,scores)]
-        self.validate_variants(variants,sequence)
-        return variants
+        start = 0
+        score_lists = []
+        for sub_list in substitutions:
+            score_lists.append(scores[start:start+len(sub_list)])
+            start += len(sub_list)
+        variants = [[Variant(sequence.seq_hash,sub,score, option_id) for sub,score in zip(subList,scores)] \
+                    for sequence, subList,scores in zip(sequences, substitutions,score_lists)]
+        [self.validate_variants(variantList,sequence) for variantList,sequence in zip(variants,sequences)]
+        return [v for variantList in variants for v in variantList]
 
     def validate_variants(self, variants : List[Variant], sequence : Sequence) -> None:
         for variant in variants:
